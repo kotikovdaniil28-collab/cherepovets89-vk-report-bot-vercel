@@ -1,0 +1,17 @@
+{
+  "name": "cherepovets89-vk-report-bot-vercel-v4-ai-rules",
+  "version": "28.0.0",
+  "private": true,
+  "description": "VK Callback API bot for CHEREPOVETS reports, strict report chats, reply-based moderation commands, moderation log, candidates group automation, section-aware application-to-staff autofill, hidden no-punish groups, staff panel, health checks, safe VK account linking, staff roles, sticky-ban moderation, Google Sheets formulas, application verdicts and audit log, and concise DeepSeek AI.",
+  "scripts": {
+    "dev": "npx vercel dev",
+    "deploy": "npx vercel --prod",
+    "check": "node --check api/vk.js && node --check api/table-webhook.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  }
+}

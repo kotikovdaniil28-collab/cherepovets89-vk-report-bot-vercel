@@ -1,6 +1,48 @@
-# CHEREPOVETS VK Bot v28: чистый интерфейс бота
+# CHEREPOVETS VK Bot v29: Gemini AI, память, картинки и правила бесед
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что добавлено в v29
+
+- Gemini как основной AI-провайдер. Если `GEMINI_API_KEY` не задан, остаётся fallback на DeepSeek.
+- AI может общаться обычным текстом в беседах `ai`, `staff`, `candidates`, если его позвали: `бот, ...`, `ии ...`, `гемини ...`.
+- Память по каждому VK-пользователю:
+  - `/память`
+  - `/забыть`
+  - `запомни: текст`
+- Генерация картинок:
+  - `/картинка красивый баннер CHEREPOVETS`
+  - `/img cyberpunk moderator avatar`
+- Бот иногда может оживлять беседу короткой репликой, если включено `AI_ATMOSPHERE_ENABLED=true`.
+- Приветствие новых участников с правилами текущей беседы.
+- Команды правил:
+  - `/rules`
+  - `/правила`
+  - `/регламент`
+
+Новые переменные Vercel:
+
+```env
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+GEMINI_TEXT_MODEL=gemini-2.5-flash
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+GEMINI_MAX_TOKENS=360
+GEMINI_TEMPERATURE=0.65
+GEMINI_TIMEOUT_MS=18000
+AI_HISTORY_LIMIT=8
+AI_ATMOSPHERE_ENABLED=true
+AI_ATMOSPHERE_CHANCE=0.025
+AI_IMAGES_BUCKET=vk-ai-images
+```
+
+Для памяти нужно выполнить SQL:
+
+```text
+supabase/v29_gemini_memory.sql
+```
+
+Для картинок нужен публичный Supabase Storage bucket, например `vk-ai-images`.
+Если VK не примет фото как вложение, бот попытается сохранить картинку в bucket и отправить ссылку.
 
 ## Что исправлено в v28
 

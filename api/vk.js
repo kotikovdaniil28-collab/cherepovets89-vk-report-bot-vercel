@@ -126,6 +126,32 @@ function env(name, fallback = '') {
   return String(value).trim();
 }
 
+function supabaseUrl() {
+  return env('SUPABASE_URL') || env('NEXT_PUBLIC_SUPABASE_URL') || '';
+}
+
+function supabaseKey() {
+  // Service-role is preferred. Publishable/anon is accepted for the AI-memory tables
+  // because their SQL grants are intentionally relaxed for this bot project.
+  return env('SUPABASE_SERVICE_ROLE_KEY')
+    || env('SUPABASE_SERVICE_KEY')
+    || env('SUPABASE_SECRET_KEY')
+    || env('SUPABASE_ANON_KEY')
+    || env('SUPABASE_PUBLISHABLE_KEY')
+    || env('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    || env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
+    || '';
+}
+
+function hasSupabaseConfig() {
+  return !!supabaseUrl() && !!supabaseKey();
+}
+
+function isMissingDbObject(error) {
+  const raw = String(error && (error.message || error) || '');
+  return /relation .* does not exist|schema cache|could not find the table|does not exist|PGRST205|PGRST204|42P01/i.test(raw);
+}
+
 function candidatesInviteLink() {
   return env('CANDIDATES_INVITE_LINK') || env('VK_CANDIDATES_INVITE_LINK');
 }
@@ -137,7 +163,13 @@ function userFacingError(error, fallback = 'Команда временно не
   if (/GOOGLE_APPS_SCRIPT_URL|Apps Script|Google Apps Script|script\.google|Web App|unknown mode|HTML/i.test(raw)) {
     return 'Модуль таблицы сейчас недоступен. Передайте владельцу бота.';
   }
-  if (/Supabase|SQL|relation .* does not exist|schema cache|database/i.test(raw)) {
+  if (/Missing required environment variable: SUPABASE/i.test(raw)) {
+    return 'База не подключена в Vercel. Нужны SUPABASE_URL и ключ Supabase.';
+  }
+  if (/relation .* does not exist|schema cache|could not find the table|PGRST205|42P01/i.test(raw)) {
+    return 'В Supabase не создана полная схема бота. Выполните SQL v30 из архива.';
+  }
+  if (/Supabase|SQL|database/i.test(raw)) {
     return 'База данных сейчас недоступна. Передайте владельцу бота.';
   }
   if (/DEEPSEEK|api key|unauthorized|authentication/i.test(raw)) {
@@ -177,11 +209,11 @@ function reqQuery(req, name) {
 
 function getSupabase() {
   if (!supabaseClient) {
-    supabaseClient = createClient(
-      requireEnv('SUPABASE_URL'),
-      requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
-      { auth: { persistSession: false } }
-    );
+    const url = supabaseUrl();
+    const key = supabaseKey();
+    if (!url) throw new Error('Missing required environment variable: SUPABASE_URL');
+    if (!key) throw new Error('Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY or SUPABASE_PUBLISHABLE_KEY');
+    supabaseClient = createClient(url, key, { auth: { persistSession: false } });
   }
   return supabaseClient;
 }
@@ -971,10 +1003,16 @@ async function canUseStaffCommands(vkUserId, peerId) {
 
 async function deleteExpiredSessions() {
   const cutoff = new Date(Date.now() - SESSION_TTL_MS).toISOString();
-  await getSupabase()
-    .from('vk_report_sessions')
-    .delete()
-    .lt('updated_at', cutoff);
+  try {
+    const { error } = await getSupabase()
+      .from('vk_report_sessions')
+      .delete()
+      .lt('updated_at', cutoff);
+    if (error && !isMissingDbObject(error)) throw error;
+  } catch (error) {
+    if (!isMissingDbObject(error)) throw error;
+    console.warn('deleteExpiredSessions skipped:', error.message || error);
+  }
 }
 
 async function getSession(peerId, vkUserId) {
@@ -985,12 +1023,20 @@ async function getSession(peerId, vkUserId) {
     .eq('session_key', key)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingDbObject(error)) {
+      console.warn('getSession skipped:', error.message || error);
+      return null;
+    }
+    throw error;
+  }
   if (!data) return null;
 
   const updatedAt = new Date(data.updated_at).getTime();
   if (!updatedAt || Date.now() - updatedAt > SESSION_TTL_MS) {
-    await deleteSession(peerId, vkUserId);
+    await deleteSession(peerId, vkUserId).catch(error => {
+      if (!isMissingDbObject(error)) throw error;
+    });
     return null;
   }
 
@@ -1693,6 +1739,7 @@ async function userInfo(peerId, targetVkId) {
 }
 
 function parseJsonMaybe(value) {
+  if (value && typeof value === 'object') return value;
   const text = cleanText(value);
   if (!text) return null;
   try {
@@ -1703,11 +1750,31 @@ function parseJsonMaybe(value) {
   return null;
 }
 
+function commandFromButtonLabel(label) {
+  const raw = cleanText(label).toLowerCase().replace(/ё/g, 'е');
+  return new Map([
+    ['отчеты', '/help отчеты'],
+    ['модерация', '/help наказания'],
+    ['заявки', '/help заявки'],
+    ['состав', '/help состав'],
+    ['панель', '/панель'],
+    ['ai', '/help ai'],
+    ['ии', '/help ai'],
+    ['главное меню', '/help'],
+    ['принять', ''],
+    ['собес', ''],
+    ['отказать', ''],
+    ['обновить', '/заявки 5'],
+  ]).get(raw) || '';
+}
+
 function commandTextFromMessage(message) {
   const text = cleanText(message && message.text);
   const payload = parseJsonMaybe(message && message.payload);
-  const command = cleanText(payload && payload.command);
-  return command || text;
+  const command = cleanText(
+    payload && (payload.command || payload.cmd || payload.text || payload.value || payload.payload)
+  );
+  return command || commandFromButtonLabel(text) || text;
 }
 
 
@@ -2901,7 +2968,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
   const match = cleanText(text).match(AI_IMAGE_COMMAND_RE);
   if (!match) return false;
   if (!(await canUseAi(vkUserId, peerId))) {
-    await sendMessage(peerId, '⛔ Генерация картинок доступна владельцу, модераторам и разрешённым группам staff/reports/ai.');
+    await sendMessage(peerId, '⛔ Генерация картинок доступна владельцу, модераторам и разрешённым группам staff/candidates/ai.');
     return true;
   }
   if (!geminiApiKey()) {
@@ -3020,7 +3087,7 @@ async function askDeepSeek(mode, question, context = {}) {
 async function canUseAi(vkUserId, peerId) {
   if (isOwner(vkUserId)) return true;
   const type = await getGroupType(peerId).catch(() => '');
-  if (['staff', 'reports', 'ai'].includes(type)) return true;
+  if (['staff', 'candidates', 'ai'].includes(type)) return true;
   return await isLinkedModerator(vkUserId).catch(() => false);
 }
 
@@ -3069,7 +3136,7 @@ async function handleAiCommand(peerId, vkUserId, text) {
   if (!question) return false;
 
   if (!(await canUseAi(vkUserId, peerId))) {
-    await sendMessage(peerId, '⛔ AI-команды доступны владельцу, модераторам и разрешённым группам staff/reports/ai.');
+    await sendMessage(peerId, '⛔ AI-команды доступны владельцу, модераторам и разрешённым группам staff/candidates/ai.');
     return true;
   }
 
@@ -3220,6 +3287,36 @@ async function welcomeIfNeeded(peerId, message) {
     'Команды: /help, /rules, /ид',
   ].join('\n');
   await sendMessage(peerId, hello, { disableMentions: false });
+  return true;
+}
+
+
+async function aiTestCommand(peerId, vkUserId, text) {
+  const raw = cleanText(text);
+  if (!/^\/(?:аитест|ai_test|aitest|ai\s+test)(?:\s|$)/i.test(raw)) return false;
+  if (!isOwner(vkUserId)) {
+    await sendMessage(peerId, ownerOnlyText());
+    return true;
+  }
+
+  const checks = [];
+  const add = (name, ok, detail = '') => checks.push(`${ok ? '✅' : '⚠️'} ${name}${detail ? `: ${detail}` : ''}`);
+  add('Gemini key', !!geminiApiKey());
+  add('Supabase config', hasSupabaseConfig());
+
+  try {
+    await loadAiMemory(vkUserId);
+    add('AI memory table', true);
+  } catch (error) {
+    add('AI memory table', false, userFacingError(error));
+  }
+
+  if (geminiApiKey()) {
+    const answer = await askGeminiText('ai', 'Ответь одним словом: работает', { peerId, vkUserId });
+    add('Gemini text', !/недоступен|ошибка|временно/i.test(answer), compactAiAnswer(answer).slice(0, 120));
+  }
+
+  await sendMessage(peerId, ['🧪 AI-ТЕСТ', '━━━━━━━━━━━━━━━━', ...checks].join('\n'));
   return true;
 }
 
@@ -4569,7 +4666,7 @@ async function healthCommand(peerId, vkUserId) {
   const add = (name, ok, detail = '') => checks.push(`${ok ? '✅' : '⚠️'} ${name}${detail ? `: ${detail}` : ''}`);
 
   add('VK подключён', !!env('VK_GROUP_TOKEN'));
-  add('База подключена', !!env('SUPABASE_URL') && !!env('SUPABASE_SERVICE_ROLE_KEY'));
+  add('База подключена', hasSupabaseConfig(), supabaseKey() && !env('SUPABASE_SERVICE_ROLE_KEY') ? 'fallback-ключ' : '');
   add('Владелец задан', !!ownerVkId());
   add('Таблица заявок подключена', !!googleSheetPullUrl() && !!googleSheetPullSecret());
   add('AI-помощник подключён', aiProviderName() !== 'none', aiProviderName());
@@ -4876,6 +4973,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /наказание <нарушение>',
       '• /шаблон <ответ>',
       '• /картинка <описание> — сгенерировать изображение через Gemini',
+      '• /аитест — проверка Gemini/памяти для владельца',
       '• /память — показать, что AI помнит о вас',
       '• /забыть — очистить память AI о вас',
       '• запомни: <факт> — сохранить факт в память',
@@ -4925,12 +5023,20 @@ async function handleMessageNew(payload) {
 
   if (!peerId || !vkUserId || vkUserId.startsWith('-')) return;
 
-  await deleteExpiredSessions();
-  if (await enforceStickyBanInviteIfNeeded(peerId, message)) return;
-  if (await welcomeIfNeeded(peerId, message)) return;
-  if (await enforceStickyBanIfNeeded(peerId, vkUserId, message)) return;
+  await deleteExpiredSessions().catch(error => {
+    if (!isMissingDbObject(error)) throw error;
+  });
+  if (await enforceStickyBanInviteIfNeeded(peerId, message).catch(() => false)) return;
+  if (await welcomeIfNeeded(peerId, message).catch(error => {
+    console.warn('welcome skipped:', error.message || error);
+    return false;
+  })) return;
+  if (await enforceStickyBanIfNeeded(peerId, vkUserId, message).catch(() => false)) return;
 
-  const session = await getSession(peerId, vkUserId);
+  const session = await getSession(peerId, vkUserId).catch(error => {
+    if (!isMissingDbObject(error)) throw error;
+    return null;
+  });
 
   if (ID_COMMAND_RE.test(text)) {
     await sendMessage(peerId, `🆔 Ваш VK ID: ${vkUserId}\n💬 ID беседы: ${peerId}`);
@@ -4964,6 +5070,7 @@ async function handleMessageNew(payload) {
   }
 
   if (await rulesCommand(peerId, vkUserId, text)) return;
+  if (await aiTestCommand(peerId, vkUserId, text)) return;
   if (await handleGroupCommand(peerId, vkUserId, text)) return;
   if (await handleImageCommand(peerId, vkUserId, text)) return;
   if (await handleAiCommand(peerId, vkUserId, text)) return;
@@ -4997,14 +5104,14 @@ module.exports = async function handler(req, res) {
       }
       try {
         const expired = await expireModerationActions();
-        res.status(200).json({ ok: true, service: 'cherepovets-vk-bot-v26-expire-task', expired });
+        res.status(200).json({ ok: true, service: 'cherepovets-vk-bot-v30-gemini-fix-expire-task', expired });
       } catch (error) {
         res.status(500).json({ ok: false, error: error.message || String(error) });
       }
       return;
     }
 
-    res.status(200).json({ ok: true, service: 'cherepovets-vk-bot-v26-section-aware-staff', reportsPeerId: reportsPeerId() || null });
+    res.status(200).json({ ok: true, service: 'cherepovets-vk-bot-v30-gemini-memory-fix', reportsPeerId: reportsPeerId() || null });
     return;
   }
 

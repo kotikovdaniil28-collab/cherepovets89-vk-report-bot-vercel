@@ -1,3 +1,27 @@
+# v30 — исправление Gemini/памяти/кнопок
+
+Основа: v29.
+
+Исправлено:
+- бот больше не падает на каждом сообщении, если в новой Supabase ещё нет старых таблиц `vk_report_sessions` / `vk_group_bindings`;
+- кнопки VK из `/help` снова обрабатываются даже если VK прислал payload как объект или только текст кнопки;
+- AI разрешён в беседах `ai`, `staff`, `candidates`;
+- добавлен owner-тест `/аитест` для проверки Gemini и таблиц памяти;
+- Supabase key теперь берётся из `SUPABASE_SERVICE_ROLE_KEY`, а если его нет — из `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY` для AI-памяти;
+- добавлен полный SQL `supabase/v30_full_bot_schema_ai_fix.sql` для новой базы: core-таблицы бота + AI-память + bucket `vk-ai-images`.
+
+Для новой Supabase-базы сначала выполните:
+
+```sql
+-- файл: supabase/v30_full_bot_schema_ai_fix.sql
+```
+
+После деплоя проверьте в VK командой владельца:
+
+```text
+/аитест
+```
+
 # CHEREPOVETS VK Bot v29: Gemini AI, память, картинки и правила бесед
 
 Owner этой сборки зафиксирован: `628466808`.

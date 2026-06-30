@@ -1,8 +1,8 @@
 {
   "name": "cherepovets89-vk-report-bot-vercel-v4-ai-rules",
-  "version": "29.0.0",
+  "version": "30.0.0",
   "private": true,
-  "description": "VK Callback API bot for CHEREPOVETS reports, moderation, Google Sheets, staff workflows, Gemini/DeepSeek AI chat, per-user AI memory, image generation, welcome messages and group rules.",
+  "description": "VK Callback API bot for CHEREPOVETS reports, moderation, Google Sheets, staff workflows, Gemini/DeepSeek AI chat, per-user AI memory, image generation, welcome messages, group rules, fixed VK buttons and safe Supabase startup.",
   "scripts": {
     "dev": "npx vercel dev",
     "deploy": "npx vercel --prod",

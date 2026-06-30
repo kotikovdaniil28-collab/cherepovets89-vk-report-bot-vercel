@@ -1,3 +1,57 @@
+# v31 — исправление живого Gemini-чата и картинок
+
+Основа: v30.
+
+Исправлено:
+- обычный текст без `/` теперь обрабатывается в `ai`, `staff`, `candidates`;
+- в `ai`-беседе бот отвечает на любой обычный текст;
+- в `staff/candidates` бот отвечает владельцу на обычный текст, а остальным — на обращения, вопросы и просьбы;
+- добавлены настройки `AI_PASSIVE_REPLY_MODE` и `AI_STAFF_REPLY_ALL`;
+- генерация картинок переведена на официальный Gemini Interactions API (`/v1beta/interactions`);
+- ошибка Storage/Supabase больше не должна превращаться в общее “База данных недоступна” после `/картинка`;
+- картинка сначала отправляется в VK как attachment, Storage используется как резервная публичная ссылка;
+- добавлен endpoint `/api/ai-atmosphere` для самостоятельных атмосферных сообщений через cron/ручной вызов.
+
+Рекомендуемые переменные Vercel для AI:
+
+```env
+GEMINI_API_KEY=...
+GEMINI_TEXT_MODEL=gemini-2.5-flash
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+AI_PASSIVE_REPLY_MODE=smart
+AI_STAFF_REPLY_ALL=false
+AI_ATMOSPHERE_ENABLED=true
+AI_ATMOSPHERE_CHANCE=0.025
+AI_ATMOSPHERE_PEER_IDS=
+AI_ATMOSPHERE_MAX_CHATS=3
+AI_CRON_SECRET=любой_секрет_для_cron
+AI_IMAGES_BUCKET=vk-ai-images
+```
+
+Если нужно, чтобы бот отвечал вообще на каждое сообщение в staff/candidates, поставьте:
+
+```env
+AI_STAFF_REPLY_ALL=true
+```
+
+Для самостоятельной реплики без входящих сообщений вызовите:
+
+```text
+https://ВАШ-ДОМЕН.vercel.app/api/ai-atmosphere?secret=ВАШ_AI_CRON_SECRET
+```
+
+Важное ограничение VK: бот не получает событие, если в беседе совсем ничего не происходит. Поэтому “сам писать без сообщений” возможно только через cron/ручной GET endpoint, а не через обычный VK callback.
+
+Проверка после деплоя:
+
+```text
+/аитест
+/group type staff
+привет, как настроение?
+придумай короткий баннер CHEREPOVETS
+/картинка красивый баннер CHEREPOVETS
+```
+
 # v30 — исправление Gemini/памяти/кнопок
 
 Основа: v29.

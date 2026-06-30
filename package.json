@@ -1,12 +1,12 @@
 {
-  "name": "cherepovets89-vk-report-bot-vercel-v4-ai-rules",
-  "version": "30.0.0",
+  "name": "cherepovets89-vk-report-bot-vercel-v31-gemini-live-fix",
+  "version": "31.0.0",
   "private": true,
-  "description": "VK Callback API bot for CHEREPOVETS reports, moderation, Google Sheets, staff workflows, Gemini/DeepSeek AI chat, per-user AI memory, image generation, welcome messages, group rules, fixed VK buttons and safe Supabase startup.",
+  "description": "VK Callback API bot for CHEREPOVETS with fixed Gemini text chat without slash, robust Gemini image generation via Interactions API, AI memory, atmosphere endpoint, buttons and Supabase-safe startup.",
   "scripts": {
     "dev": "npx vercel dev",
     "deploy": "npx vercel --prod",
-    "check": "node --check api/vk.js && node --check api/table-webhook.js && node --check api/google-sheet-webhook.js"
+    "check": "node --check api/vk.js && node --check api/ai-atmosphere.js && node --check api/table-webhook.js && node --check api/google-sheet-webhook.js"
   },
   "engines": {
     "node": ">=20"

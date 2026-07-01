@@ -1,89 +1,65 @@
-# v31 — исправление живого Gemini-чата и картинок
+# CHEREPOVETS VK Bot v35: xAI / Grok, память, картинки и правила бесед
 
-Основа: v30.
+Owner этой сборки зафиксирован: `628466808`.
 
-Исправлено:
-- обычный текст без `/` теперь обрабатывается в `ai`, `staff`, `candidates`;
-- в `ai`-беседе бот отвечает на любой обычный текст;
-- в `staff/candidates` бот отвечает владельцу на обычный текст, а остальным — на обращения, вопросы и просьбы;
-- добавлены настройки `AI_PASSIVE_REPLY_MODE` и `AI_STAFF_REPLY_ALL`;
-- генерация картинок переведена на официальный Gemini Interactions API (`/v1beta/interactions`);
-- ошибка Storage/Supabase больше не должна превращаться в общее “База данных недоступна” после `/картинка`;
-- картинка сначала отправляется в VK как attachment, Storage используется как резервная публичная ссылка;
-- добавлен endpoint `/api/ai-atmosphere` для самостоятельных атмосферных сообщений через cron/ручной вызов.
+## Что добавлено в v35
 
-Рекомендуемые переменные Vercel для AI:
+- Gemini полностью убран из AI-слоя.
+- Основной AI-провайдер: xAI API / Grok.
+- Текстовый чат: `XAI_TEXT_MODEL`, по умолчанию `grok-3`.
+- Vision: `XAI_VISION_MODEL`, команда `/vision` и ответы на фото.
+- Картинки: Grok Imagine через `/v1/images/generations`, модель `grok-imagine-image-quality`.
+- Длинные ответы делятся на несколько VK-сообщений вместо тупой обрезки.
+- Проверенный системный факт: владелец VK `628466808` — ГМ.
+- Обычные пользователи не могут записать в память “я ГМ”, “он нарушитель”, оскорбления и непроверенные обвинения.
+- Добавлены диагностики:
+  - `/версия`
+  - `/аитест`
+
+Переменные Vercel для xAI:
 
 ```env
-GEMINI_API_KEY=...
-GEMINI_TEXT_MODEL=gemini-2.5-flash
-GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+XAI_API_KEY=YOUR_XAI_API_KEY
+XAI_BASE_URL=https://api.x.ai/v1
+XAI_TEXT_MODEL=grok-3
+XAI_VISION_MODEL=grok-3
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+XAI_MAX_TOKENS=900
+XAI_TEMPERATURE=0.7
+XAI_TIMEOUT_MS=18000
+XAI_IMAGE_RESPONSE_FORMAT=
+XAI_IMAGE_SIZE=
+XAI_IMAGE_ASPECT_RATIO=
+XAI_IMAGE_RESOLUTION=
+
+OWNER_AI_TITLE=ГМ
+OWNER_AI_NAME=Даниил
+AI_MAX_OUTPUT_CHARS=6000
+AI_HISTORY_LIMIT=8
 AI_PASSIVE_REPLY_MODE=smart
+AI_OWNER_REPLY_ALL=true
 AI_STAFF_REPLY_ALL=false
 AI_ATMOSPHERE_ENABLED=true
 AI_ATMOSPHERE_CHANCE=0.025
-AI_ATMOSPHERE_PEER_IDS=
-AI_ATMOSPHERE_MAX_CHATS=3
-AI_CRON_SECRET=любой_секрет_для_cron
 AI_IMAGES_BUCKET=vk-ai-images
 ```
-
-Если нужно, чтобы бот отвечал вообще на каждое сообщение в staff/candidates, поставьте:
-
-```env
-AI_STAFF_REPLY_ALL=true
-```
-
-Для самостоятельной реплики без входящих сообщений вызовите:
-
-```text
-https://ВАШ-ДОМЕН.vercel.app/api/ai-atmosphere?secret=ВАШ_AI_CRON_SECRET
-```
-
-Важное ограничение VK: бот не получает событие, если в беседе совсем ничего не происходит. Поэтому “сам писать без сообщений” возможно только через cron/ручной GET endpoint, а не через обычный VK callback.
 
 Проверка после деплоя:
 
 ```text
+/версия
 /аитест
-/group type staff
-привет, как настроение?
-придумай короткий баннер CHEREPOVETS
+грок, кто я?
+/vision что на фото?
 /картинка красивый баннер CHEREPOVETS
 ```
 
-# v30 — исправление Gemini/памяти/кнопок
-
-Основа: v29.
-
-Исправлено:
-- бот больше не падает на каждом сообщении, если в новой Supabase ещё нет старых таблиц `vk_report_sessions` / `vk_group_bindings`;
-- кнопки VK из `/help` снова обрабатываются даже если VK прислал payload как объект или только текст кнопки;
-- AI разрешён в беседах `ai`, `staff`, `candidates`;
-- добавлен owner-тест `/аитест` для проверки Gemini и таблиц памяти;
-- Supabase key теперь берётся из `SUPABASE_SERVICE_ROLE_KEY`, а если его нет — из `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY` для AI-памяти;
-- добавлен полный SQL `supabase/v30_full_bot_schema_ai_fix.sql` для новой базы: core-таблицы бота + AI-память + bucket `vk-ai-images`.
-
-Для новой Supabase-базы сначала выполните:
-
-```sql
--- файл: supabase/v30_full_bot_schema_ai_fix.sql
-```
-
-После деплоя проверьте в VK командой владельца:
-
-```text
-/аитест
-```
-
-# CHEREPOVETS VK Bot v29: Gemini AI, память, картинки и правила бесед
-
-Owner этой сборки зафиксирован: `628466808`.
+SQL новый не нужен, если AI-таблицы уже созданы в v29/v30. Если база новая, выполни `supabase/latest.sql`.
 
 ## Что добавлено в v29
 
-- Gemini как основной AI-провайдер. Если `GEMINI_API_KEY` не задан, остаётся fallback на DeepSeek.
-- AI может общаться обычным текстом в беседах `ai`, `staff`, `candidates`, если его позвали: `бот, ...`, `ии ...`, `гемини ...`.
+- AI-память и базовый чат-помощник.
+- AI может общаться обычным текстом в беседах `ai`, `staff`, `candidates`, если его позвали: `бот, ...`, `ии ...`, `грок ...`.
 - Память по каждому VK-пользователю:
   - `/память`
   - `/забыть`
@@ -98,25 +74,10 @@ Owner этой сборки зафиксирован: `628466808`.
   - `/правила`
   - `/регламент`
 
-Новые переменные Vercel:
-
-```env
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-GEMINI_TEXT_MODEL=gemini-2.5-flash
-GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
-GEMINI_MAX_TOKENS=360
-GEMINI_TEMPERATURE=0.65
-GEMINI_TIMEOUT_MS=18000
-AI_HISTORY_LIMIT=8
-AI_ATMOSPHERE_ENABLED=true
-AI_ATMOSPHERE_CHANCE=0.025
-AI_IMAGES_BUCKET=vk-ai-images
-```
-
 Для памяти нужно выполнить SQL:
 
 ```text
-supabase/v29_gemini_memory.sql
+supabase/v35_xai_memory.sql
 ```
 
 Для картинок нужен публичный Supabase Storage bucket, например `vk-ai-images`.

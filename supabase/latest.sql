@@ -1,4 +1,4 @@
--- CH89 VK Bot v5 SQL
+-- CHEREPOVETS VK Bot SQL
 -- Run this in the SAME Supabase project used by the site and Vercel bot.
 -- Safe to run multiple times.
 
@@ -307,44 +307,5 @@ on conflict (vk_user_id) do update set
   title = excluded.title,
   note = excluded.note,
   updated_at = now();
-
-notify pgrst, 'reload schema';
-
--- v30: public bucket for Gemini-generated images.
--- Safe to run multiple times.
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'vk-ai-images',
-  'vk-ai-images',
-  true,
-  10485760,
-  array['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-)
-on conflict (id) do update set
-  public = excluded.public,
-  file_size_limit = excluded.file_size_limit,
-  allowed_mime_types = excluded.allowed_mime_types;
-
-drop policy if exists "vk_ai_images_public_read" on storage.objects;
-create policy "vk_ai_images_public_read"
-on storage.objects
-for select
-to anon, authenticated
-using (bucket_id = 'vk-ai-images');
-
-drop policy if exists "vk_ai_images_anon_insert" on storage.objects;
-create policy "vk_ai_images_anon_insert"
-on storage.objects
-for insert
-to anon, authenticated
-with check (bucket_id = 'vk-ai-images');
-
-drop policy if exists "vk_ai_images_anon_update" on storage.objects;
-create policy "vk_ai_images_anon_update"
-on storage.objects
-for update
-to anon, authenticated
-using (bucket_id = 'vk-ai-images')
-with check (bucket_id = 'vk-ai-images');
 
 notify pgrst, 'reload schema';

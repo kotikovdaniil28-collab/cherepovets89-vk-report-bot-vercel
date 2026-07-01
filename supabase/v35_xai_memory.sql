@@ -1,4 +1,4 @@
--- CH89 VK Bot v29: Gemini AI memory and image generations.
+-- CHEREPOVETS VK Bot v35: xAI/Grok memory and image generations.
 -- Safe to run multiple times.
 
 create table if not exists public.vk_ai_memory (

@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v41-xai-image-no-db-log';
+const BUILD_VERSION = 'v42-group-ai-web-search';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -2827,6 +2827,10 @@ function xaiTextModel() {
   return env('XAI_TEXT_MODEL', 'grok-3');
 }
 
+function xaiSearchModel() {
+  return env('XAI_SEARCH_MODEL', env('XAI_TEXT_MODEL', 'grok-4.3'));
+}
+
 function xaiVisionModel() {
   return env('XAI_VISION_MODEL', xaiTextModel());
 }
@@ -3006,6 +3010,34 @@ function xaiTextFromResponse(data) {
   return data?.output_text || data?.text || '';
 }
 
+function xaiResponsesText(data) {
+  if (typeof data?.output_text === 'string') return data.output_text;
+  const parts = [];
+  for (const item of data?.output || []) {
+    for (const content of item?.content || []) {
+      if (typeof content?.text === 'string') parts.push(content.text);
+      else if (typeof content?.content === 'string') parts.push(content.content);
+    }
+  }
+  return parts.join('\n');
+}
+
+function xaiCitationLines(data) {
+  const raw = Array.isArray(data?.citations) ? data.citations : [];
+  const urls = raw
+    .map(item => typeof item === 'string' ? item : item?.url || item?.source || '')
+    .filter(Boolean)
+    .slice(0, Number(env('XAI_WEB_MAX_CITATIONS', '3')) || 3);
+  return [...new Set(urls)].map((url, index) => `${index + 1}. ${url}`);
+}
+
+function shouldUseWebSearch(question) {
+  if (!boolEnv('XAI_WEB_SEARCH_ENABLED', true)) return false;
+  const raw = cleanText(question).toLowerCase();
+  if (!raw) return false;
+  return /(?:найди|поищи|загугли|гугл|посмотри\s+в\s+инете|посмотри\s+в\s+интернете|в\s+браузере|проверь\s+в\s+инете|проверь\s+в\s+интернете|актуальн|свеж|сейчас|сегодня|последн|новост|курс|цена|релиз|обновлен|обновлён|когда\s+выш|кто\s+сейчас)/i.test(raw);
+}
+
 function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = '') {
   const modeHint = {
     ai: 'Ответь как собеседник и помощник.',
@@ -3091,6 +3123,62 @@ async function askXaiText(mode, question, context = {}) {
   }
 }
 
+async function askXaiWebSearch(mode, question, context = {}) {
+  const apiKey = xaiApiKey();
+  if (!apiKey) return '';
+
+  const model = xaiSearchModel();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(env('XAI_WEB_TIMEOUT_MS', '25000')) || 25000);
+
+  const memory = await loadAiMemory(context.vkUserId).catch(() => null);
+  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '8')) || 8).catch(() => []);
+  const ownerInstruction = await loadOwnerAiInstruction().catch(() => '');
+  const system = [
+    buildAiSystemPrompt(mode, context, memory, history, ownerInstruction),
+    '',
+    'Если используешь веб-поиск: отделяй проверенные факты от предположений.',
+    'Не выдумывай ссылки и даты. Если источники слабые — скажи прямо.',
+    'Ответ делай коротким: вывод, 2-4 факта, источники если есть.',
+  ].join('\n');
+
+  try {
+    const response = await fetch(`${xaiBaseUrl()}/responses`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        instructions: system,
+        input: [
+          { role: 'user', content: `peer_id=${context.peerId || '—'}, vk_id=${context.vkUserId || '—'}\n\nЗапрос с веб-поиском: ${question}` },
+        ],
+        tools: [{ type: 'web_search' }],
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      const details = data?.error?.message || data?.message || `HTTP ${response.status}`;
+      return `Grok Web Search временно недоступен: ${userFacingError(details)}`;
+    }
+
+    const answer = compactAiAnswer(xaiResponsesText(data)) || 'Не нашёл нормальный ответ.';
+    const citations = xaiCitationLines(data);
+    return citations.length
+      ? `${answer}\n\nИсточники:\n${citations.join('\n')}`
+      : answer;
+  } catch (error) {
+    if (error.name === 'AbortError') return 'Grok Web Search не успел ответить. Сформулируй запрос короче.';
+    return `Grok Web Search временно недоступен: ${userFacingError(error)}`;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function askXaiVision(question, imageUrls, context = {}) {
   const apiKey = xaiApiKey();
   if (!apiKey) return '';
@@ -3146,7 +3234,9 @@ async function askAi(mode, question, context = {}) {
   await rememberFromText(context.vkUserId, question).catch(() => null);
   await addAiMessage(context.vkUserId, context.peerId, 'user', question).catch(() => null);
   const answer = xaiApiKey()
-    ? await askXaiText(mode, question, context)
+    ? shouldUseWebSearch(question)
+      ? await askXaiWebSearch(mode, question, context)
+      : await askXaiText(mode, question, context)
     : 'Grok не подключён. Нужна переменная XAI_API_KEY.';
   await addAiMessage(context.vkUserId, context.peerId, 'assistant', answer).catch(() => null);
   return answer;
@@ -3456,7 +3546,7 @@ async function handlePassiveAi(peerId, vkUserId, text) {
     || (type === 'ai' && passiveMode !== 'off')
     || (type === 'nomod' && passiveMode !== 'off')
     || (isOwner(vkUserId) && boolEnv('AI_OWNER_REPLY_ALL', true))
-    || (['staff', 'candidates', 'nomod'].includes(type) && boolEnv('AI_STAFF_REPLY_ALL', false));
+    || (['staff', 'candidates', 'nomod'].includes(type) && boolEnv('AI_STAFF_REPLY_ALL', true));
 
   if (replyAll && raw && !raw.startsWith('/')) {
     question = raw;
@@ -5106,6 +5196,7 @@ async function versionCommand(peerId) {
     `🧩 CHEREPOVETS Bot ${BUILD_VERSION}`,
     `AI: ${aiProviderName()}`,
     `Text model: ${xaiApiKey() ? xaiTextModel() : '—'}`,
+    `Search model: ${xaiApiKey() && boolEnv('XAI_WEB_SEARCH_ENABLED', true) ? xaiSearchModel() : 'off'}`,
     `Vision model: ${xaiApiKey() ? xaiVisionModel() : '—'}`,
     `Image model: ${xaiApiKey() ? xaiImageModel() : '—'}`,
   ].join('\n'));
@@ -5123,6 +5214,7 @@ async function aiTestCommand(peerId, vkUserId) {
   add('Провайдер', aiProviderName() !== 'none', aiProviderName());
   add('XAI_API_KEY', !!xaiApiKey());
   add('Text model', !!xaiTextModel(), xaiTextModel());
+  add('Web search', boolEnv('XAI_WEB_SEARCH_ENABLED', true), boolEnv('XAI_WEB_SEARCH_ENABLED', true) ? xaiSearchModel() : 'off');
   add('Vision model', !!xaiVisionModel(), xaiVisionModel());
   add('Image model', !!xaiImageModel(), xaiImageModel());
   add('Supabase config', !!env('SUPABASE_URL') && !!env('SUPABASE_SERVICE_ROLE_KEY'));

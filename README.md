@@ -1,6 +1,14 @@
-# CHEREPOVETS VK Bot v41: генерация картинок без DB-лога
+# CHEREPOVETS VK Bot v42: AI всем + Grok Web Search
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что добавлено в v42
+
+- В активированных беседах `staff`, `candidates`, `nomod` AI теперь отвечает всем участникам, а не только владельцу.
+- Защита от чужих бесед сохранена: бот начинает работать только после `/group type ...` от владельца.
+- Добавлен Grok Web Search через xAI Responses API.
+- Если сообщение похоже на “найди”, “загугли”, “посмотри в инете”, “актуально”, “сегодня”, “сейчас”, “новости”, бот отвечает с веб-поиском.
+- Build для проверки: `v42-group-ai-web-search`.
 
 ## Что исправлено в v41
 
@@ -133,7 +141,9 @@ AI_MAX_OUTPUT_CHARS=6000
 AI_HISTORY_LIMIT=8
 AI_PASSIVE_REPLY_MODE=smart
 AI_OWNER_REPLY_ALL=true
-AI_STAFF_REPLY_ALL=false
+AI_STAFF_REPLY_ALL=true
+XAI_WEB_SEARCH_ENABLED=true
+XAI_SEARCH_MODEL=grok-4.3
 REQUIRE_OWNER_GROUP_TYPE=true
 AI_REVIEW_REPORTS_ENABLED=true
 AI_REPORT_AUTO_STATUS=true

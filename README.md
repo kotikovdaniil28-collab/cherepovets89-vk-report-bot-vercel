@@ -1,6 +1,13 @@
-# CHEREPOVETS VK Bot v39: только Grok, nomod AI, roast и dedupe
+# CHEREPOVETS VK Bot v40: фикс генерации картинок xAI
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что исправлено в v40
+
+- `/картинка` больше не падает на записи лога в Supabase.
+- Ошибка `getSupabase(...).from(...).insert(...).catch is not a function` исправлена.
+- Если картинка сгенерировалась, но лог/таблица недоступны, бот всё равно отправит картинку.
+- Build для проверки: `v40-xai-image-log-fix`.
 
 ## Что добавлено в v39
 

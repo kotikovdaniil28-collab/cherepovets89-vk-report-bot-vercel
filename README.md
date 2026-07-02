@@ -1,6 +1,74 @@
-# CHEREPOVETS VK Bot v35: xAI / Grok, память, картинки и правила бесед
+# CHEREPOVETS VK Bot v38: nomod с AI, память, мемы, xAI / Grok
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что добавлено в v38
+
+- Секретный тип `nomod` теперь разрешает AI.
+- В `nomod` всё ещё не работают наказания: муты, баны, преды и т.п. молча игнорируются.
+- В `nomod` работают:
+  - обычное общение с AI;
+  - `/картинка`;
+  - `/vision`;
+  - память `/память`, `/забыть`, `запомни:`;
+  - мемы и атмосферные сообщения.
+
+Команда:
+
+```text
+/group type nomod
+```
+
+## Что добавлено в v37
+
+- Бот анализирует обычные сообщения в активированных беседах и иногда сам создаёт мемы.
+- Мемы работают только там, где ты задал тип группы.
+- По умолчанию мемы разрешены в `staff`, `ai`, `candidates`, `general`, `reports`.
+- В отчётной беседе бот может иногда создать мем после успешной сдачи отчёта.
+- Есть cooldown, чтобы он не спамил картинками и не жёг xAI лимиты.
+
+Настройки:
+
+```env
+AI_MEMES_ENABLED=true
+AI_MEME_GROUP_TYPES=staff,ai,candidates,general,reports,nomod
+AI_MEME_CHANCE=0.012
+AI_MEME_COOLDOWN_MINUTES=45
+AI_MEME_CONTEXT_LINES=14
+AI_MEME_MIN_LINES=5
+AI_REPORT_MEMES_ENABLED=true
+AI_REPORT_MEME_CHANCE=0.08
+AI_MEME_SHOW_PROMPT=false
+```
+
+## Что добавлено в v36
+
+- Бот в беседах не работает, пока владелец не задаст тип группы.
+- В незаданной беседе обычные пользователи получают полный игнор: команды, AI, картинки и модерация не запускаются.
+- Владелец может активировать беседу:
+  - `/group type staff`
+  - `/group type reports`
+  - `/group type candidates`
+  - `/group type ai`
+  - `/group type general`
+  - `/group type nomod`
+- Это защищает xAI/Grok токены от случайных людей и чужих бесед.
+- Отчёты через `/отчет` теперь получают AI-проверку: оценка, что проверить, риск и рекомендация проверяющему.
+- AI-вердикт сохраняется в JSON отчёта для сайта: `aiReportReview`, `aiVerdict`, `aiSiteStatus`.
+- По умолчанию AI сразу ставит на сайте `Принят`, `На проверке` или `Отклонено` по AI-вердикту. Если нужно только подсказкой, поставь `AI_REPORT_AUTO_STATUS=false`.
+- AI-проверка отчёта не начисляет XP. XP остаётся ручным решением staff.
+- Владелец может менять постоянную инструкцию AI командой `/аиинструкция текст`.
+
+Новые переменные:
+
+```env
+REQUIRE_OWNER_GROUP_TYPE=true
+AI_REVIEW_REPORTS_ENABLED=true
+AI_REPORT_AUTO_STATUS=true
+AI_PERSONA=roast
+AI_ALLOW_PROFANITY=true
+AI_OWNER_INSTRUCTION=
+```
 
 ## Что добавлено в v35
 
@@ -34,11 +102,26 @@ XAI_IMAGE_RESOLUTION=
 
 OWNER_AI_TITLE=ГМ
 OWNER_AI_NAME=Даниил
+AI_PERSONA=roast
+AI_ALLOW_PROFANITY=true
+AI_OWNER_INSTRUCTION=
 AI_MAX_OUTPUT_CHARS=6000
 AI_HISTORY_LIMIT=8
 AI_PASSIVE_REPLY_MODE=smart
 AI_OWNER_REPLY_ALL=true
 AI_STAFF_REPLY_ALL=false
+REQUIRE_OWNER_GROUP_TYPE=true
+AI_REVIEW_REPORTS_ENABLED=true
+AI_REPORT_AUTO_STATUS=true
+AI_MEMES_ENABLED=true
+AI_MEME_GROUP_TYPES=staff,ai,candidates,general,reports,nomod
+AI_MEME_CHANCE=0.012
+AI_MEME_COOLDOWN_MINUTES=45
+AI_MEME_CONTEXT_LINES=14
+AI_MEME_MIN_LINES=5
+AI_REPORT_MEMES_ENABLED=true
+AI_REPORT_MEME_CHANCE=0.08
+AI_MEME_SHOW_PROMPT=false
 AI_ATMOSPHERE_ENABLED=true
 AI_ATMOSPHERE_CHANCE=0.025
 AI_IMAGES_BUCKET=vk-ai-images

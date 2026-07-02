@@ -1,6 +1,13 @@
-# CHEREPOVETS VK Bot v40: фикс генерации картинок xAI
+# CHEREPOVETS VK Bot v41: генерация картинок без DB-лога
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что исправлено в v41
+
+- `/картинка` больше вообще не пишет лог в Supabase.
+- Генерация картинки теперь не зависит от таблицы `vk_ai_image_generations`.
+- Ошибка `getSupabase(...).from(...).insert(...).catch is not a function` физически убрана из image-команды.
+- Build для проверки: `v41-xai-image-no-db-log`.
 
 ## Что исправлено в v40
 

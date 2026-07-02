@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v40-xai-image-log-fix';
+const BUILD_VERSION = 'v41-xai-image-no-db-log';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -3271,18 +3271,6 @@ async function handleImageCommand(peerId, vkUserId, text) {
       console.warn('VK image upload failed:', error.message || error);
       return '';
     });
-    try {
-      await getSupabase().from('vk_ai_image_generations').insert([{
-        vk_user_id: String(vkUserId),
-        peer_id: String(peerId),
-        prompt,
-        image_url: imageUrl || null,
-        vk_attachment: attachment || null,
-        status: attachment ? 'sent' : 'linked',
-      }]);
-    } catch (error) {
-      console.warn('AI image log insert failed:', error.message || error);
-    }
     if (typing && cleanupEnabled()) await deleteMessagesBestEffort(peerId, [typing]);
     await sendMessage(peerId, [
       '🎨 Готово',

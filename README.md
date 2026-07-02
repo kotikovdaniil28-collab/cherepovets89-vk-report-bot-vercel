@@ -1,6 +1,15 @@
-# CHEREPOVETS VK Bot v38: nomod с AI, память, мемы, xAI / Grok
+# CHEREPOVETS VK Bot v39: только Grok, nomod AI, roast и dedupe
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что добавлено в v39
+
+- Старый fallback-провайдер полностью убран. AI-провайдер только `xAI/Grok`.
+- Исправлен `nomod`: Grok отвечает там как в AI-чате.
+- Добавлена защита от повторных VK callback: одно сообщение не должно давать два AI-ответа.
+- Prompt усилен под roast-режим: жёсткие подколы, мат по ситуации, без ватного “я добрый помощник”.
+- `/картинка` больше не должна падать в “База данных недоступна” из-за Supabase Storage/лога. Ошибка теперь показывает реальную причину: xAI/VK/model/quota.
+- Dedupe можно выключить переменной `DEDUPLICATE_MESSAGES=false`, но лучше оставить включённым.
 
 ## Что добавлено в v38
 
@@ -67,6 +76,7 @@ AI_REVIEW_REPORTS_ENABLED=true
 AI_REPORT_AUTO_STATUS=true
 AI_PERSONA=roast
 AI_ALLOW_PROFANITY=true
+DEDUPLICATE_MESSAGES=true
 AI_OWNER_INSTRUCTION=
 ```
 
@@ -617,18 +627,6 @@ VK_AUTO_KICK_ON_BAN=true
 ```
 
 Если VK API не даст право на мут/кик, бот покажет ошибку VK, но действие всё равно сохранится в Supabase.
-
-## 8. DeepSeek
-
-Ответы короткие, без полотен. Команды:
-
-```text
-/совет ситуация
-/разбор кейс
-/наказание нарушение
-/шаблон текст ответа
-бот, вопрос
-```
 
 ## v8: Google Sheets заявки по колонке «Вердикт»
 

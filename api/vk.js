@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v43-soft-passive-ai';
+const BUILD_VERSION = 'v44-passive-debug';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -3538,23 +3538,29 @@ function looksLikeDisagreement(lines) {
   return ruleMentions >= 2 && disagreement;
 }
 
-function aiInterventionCooldownReady(peerId) {
+function aiInterventionCooldownRemainingMs(peerId) {
   const cooldownMs = (Number(env('AI_INTERVENTION_COOLDOWN_MINUTES', '12')) || 12) * 60 * 1000;
   const key = String(peerId);
   const last = aiInterventionCooldownByPeer.get(key) || 0;
-  if (Date.now() - last < cooldownMs) return false;
-  aiInterventionCooldownByPeer.set(key, Date.now());
+  return Math.max(0, cooldownMs - (Date.now() - last));
+}
+
+function aiInterventionCooldownReady(peerId, consume = true) {
+  const key = String(peerId);
+  if (aiInterventionCooldownRemainingMs(key) > 0) return false;
+  if (consume) aiInterventionCooldownByPeer.set(key, Date.now());
   return true;
 }
 
-async function shouldInterveneInChat(peerId, text) {
+async function shouldInterveneInChat(peerId, text, options = {}) {
+  const consumeCooldown = options.consumeCooldown !== false;
   if (!boolEnv('AI_SMART_INTERVENTIONS_ENABLED', true)) return null;
   const raw = cleanText(text);
   if (!raw || raw.startsWith('/')) return null;
   if (!looksLikeRulesDiscussion(raw)) return null;
   const lines = await loadPeerChatForMeme(peerId, Number(env('AI_INTERVENTION_CONTEXT_LINES', '10')) || 10).catch(() => []);
   if (!looksLikeDisagreement([...lines, raw]) && !/[?]|или|что выдавать|какой пункт/i.test(raw)) return null;
-  if (!aiInterventionCooldownReady(peerId)) return null;
+  if (!aiInterventionCooldownReady(peerId, consumeCooldown)) return null;
   return [
     'В чате обсуждают правило или меру наказания. Вмешайся кратко как помощник модерации.',
     'Не пиши длинную лекцию. Формат: мнение → пункт/мера → что проверить.',
@@ -3562,6 +3568,68 @@ async function shouldInterveneInChat(peerId, text) {
     '',
     `Последние реплики:\n${[...lines.slice(-9), `@id?: ${raw}`].join('\n')}`,
   ].join('\n');
+}
+
+async function passiveAiDecision(peerId, vkUserId, text, options = {}) {
+  const raw = cleanText(text);
+  const type = await getGroupType(peerId).catch(() => '');
+  const passiveMode = env('AI_PASSIVE_REPLY_MODE', 'smart').toLowerCase();
+  const allowed = ['ai', 'staff', 'candidates', 'nomod'].includes(type) || await isLinkedModerator(vkUserId).catch(() => false);
+  const canUse = allowed && await canUseAi(vkUserId, peerId).catch(() => false);
+  const replyAll = passiveMode === 'all';
+  const base = {
+    shouldReply: false,
+    reason: '',
+    question: '',
+    raw,
+    type,
+    passiveMode,
+    allowed,
+    canUse,
+    replyAll,
+    ownerReplyAllEnv: boolEnv('AI_OWNER_REPLY_ALL', false),
+    staffReplyAllEnv: boolEnv('AI_STAFF_REPLY_ALL', false),
+    atmosphereEnabled: boolEnv('AI_ATMOSPHERE_ENABLED', true),
+    atmosphereChance: env('AI_ATMOSPHERE_CHANCE', type === 'ai' ? '0.012' : '0.006'),
+    interventionCooldownMs: aiInterventionCooldownRemainingMs(peerId),
+  };
+
+  if (!raw) return { ...base, reason: 'empty_text' };
+  if (raw.startsWith('/')) return { ...base, reason: 'command' };
+  if (!canUse) return { ...base, reason: 'not_allowed' };
+  if (passiveMode === 'off') return { ...base, reason: 'passive_off' };
+  if (replyAll) return { ...base, shouldReply: true, reason: 'mode_all', question: raw };
+  if (canAutoAiByText(raw)) {
+    return {
+      ...base,
+      shouldReply: true,
+      reason: 'called_by_name_or_help_phrase',
+      question: raw.replace(/^(?:бот|bot|ч89|ch89|ии|нейро|grok|грок|xai|иксай)[,!\s]+/i, '').trim() || raw,
+    };
+  }
+
+  const intervention = await shouldInterveneInChat(peerId, raw, { consumeCooldown: options.consumeCooldown !== false });
+  if (intervention) return { ...base, shouldReply: true, reason: 'rules_discussion', question: intervention };
+
+  if (await shouldAtmosphereMessage(peerId, vkUserId, raw)) {
+    if (!aiInterventionCooldownReady(`atmosphere:${peerId}`, options.consumeCooldown !== false)) {
+      return { ...base, reason: 'atmosphere_cooldown' };
+    }
+    const lines = await loadPeerChatForMeme(peerId, 8).catch(() => []);
+    return {
+      ...base,
+      shouldReply: true,
+      reason: 'atmosphere_random',
+      question: [
+        'Напиши короткую живую реплику в чат CHEREPOVETS.',
+        `Тип беседы: ${type || 'обычная'}.`,
+        lines.length ? `Контекст:\n${lines.slice(-8).join('\n')}` : `Последнее сообщение пользователя: ${raw}`,
+        'Не отвечай как техподдержка. Просто органично вставь одну уместную реплику, максимум 1-2 строки.',
+      ].join('\n'),
+    };
+  }
+
+  return { ...base, reason: 'no_trigger' };
 }
 
 async function shouldAtmosphereMessage(peerId, vkUserId, text) {
@@ -3579,45 +3647,13 @@ async function shouldAtmosphereMessage(peerId, vkUserId, text) {
 
 async function handlePassiveAi(peerId, vkUserId, text) {
   const raw = cleanText(text);
-  const type = await getGroupType(peerId).catch(() => '');
-  const allowed = ['ai', 'staff', 'candidates', 'nomod'].includes(type) || await isLinkedModerator(vkUserId).catch(() => false);
-  if (!allowed || !(await canUseAi(vkUserId, peerId))) return false;
-
-  let question = '';
-  const passiveMode = env('AI_PASSIVE_REPLY_MODE', 'smart').toLowerCase();
-  const replyAll = passiveMode === 'all'
-    || (isOwner(vkUserId) && boolEnv('AI_OWNER_REPLY_ALL', false))
-    || (['staff', 'candidates', 'nomod', 'ai'].includes(type) && boolEnv('AI_STAFF_REPLY_ALL', false));
-
-  if (replyAll && raw && !raw.startsWith('/')) {
-    question = raw;
-  } else if (canAutoAiByText(raw)) {
-    question = raw.replace(/^(?:бот|bot|ч89|ch89|ии|нейро|grok|грок|xai|иксай)[,!\s]+/i, '').trim() || raw;
-  } else {
-    const intervention = await shouldInterveneInChat(peerId, raw);
-    if (intervention) question = intervention;
-  }
-
-  if (!question && passiveMode !== 'off' && await shouldAtmosphereMessage(peerId, vkUserId, raw)) {
-    const lines = await loadPeerChatForMeme(peerId, 8).catch(() => []);
-    if (!aiInterventionCooldownReady(`atmosphere:${peerId}`)) {
-      await rememberFromText(vkUserId, raw).catch(() => null);
-      return false;
-    }
-    question = [
-      'Напиши короткую живую реплику в чат CHEREPOVETS.',
-      `Тип беседы: ${type || 'обычная'}.`,
-      lines.length ? `Контекст:\n${lines.slice(-8).join('\n')}` : `Последнее сообщение пользователя: ${raw}`,
-      'Не отвечай как техподдержка. Просто органично вставь одну уместную реплику, максимум 1-2 строки.',
-    ].join('\n');
-  }
-
-  if (!question) {
+  const decision = await passiveAiDecision(peerId, vkUserId, raw);
+  if (!decision.shouldReply) {
     await rememberFromText(vkUserId, raw).catch(() => null);
     return false;
   }
 
-  const answer = await askAi('ai', question, { peerId, vkUserId });
+  const answer = await askAi('ai', decision.question, { peerId, vkUserId });
   await sendLongMessage(peerId, `💬 ${compactAiAnswer(answer)}`);
   return true;
 }
@@ -5290,6 +5326,51 @@ async function aiTestCommand(peerId, vkUserId) {
   ].join('\n'));
 }
 
+async function aiDebugCommand(peerId, vkUserId, text) {
+  if (!(await canUseStaffCommands(vkUserId, peerId)) && !isOwner(vkUserId)) {
+    await sendMessage(peerId, '⛔ /aidebug доступен staff-составу.');
+    return;
+  }
+
+  const sample = cleanText(text).replace(/^\/(?:aidebug|аидебаг|ai_debug|ai-debug|debugai|дебагии)(?:\s+)?/i, '');
+  const lines = await loadPeerChatForMeme(peerId, Number(env('AI_INTERVENTION_CONTEXT_LINES', '10')) || 10).catch(() => []);
+  const decision = await passiveAiDecision(peerId, vkUserId, sample || (lines[lines.length - 1] || ''), { consumeCooldown: false });
+  const type = await getGroupType(peerId).catch(() => '');
+
+  await sendLongMessage(peerId, [
+    '🧠 AI DEBUG',
+    '━━━━━━━━━━━━━━━━',
+    `Build: ${BUILD_VERSION}`,
+    `Peer: ${peerId}`,
+    `Тип беседы: ${type ? groupTypeTitle(type) : 'тип не задан'}`,
+    `VK: ${vkUserId}${isOwner(vkUserId) ? ' · owner' : ''}`,
+    '',
+    'Env:',
+    `AI_PASSIVE_REPLY_MODE=${env('AI_PASSIVE_REPLY_MODE', 'smart')}`,
+    `AI_OWNER_REPLY_ALL=${env('AI_OWNER_REPLY_ALL', 'false')} (в smart игнорируется)`,
+    `AI_STAFF_REPLY_ALL=${env('AI_STAFF_REPLY_ALL', 'false')} (в smart игнорируется)`,
+    `AI_SMART_INTERVENTIONS_ENABLED=${env('AI_SMART_INTERVENTIONS_ENABLED', 'true')}`,
+    `AI_INTERVENTION_COOLDOWN_MINUTES=${env('AI_INTERVENTION_COOLDOWN_MINUTES', '12')}`,
+    `AI_ATMOSPHERE_ENABLED=${env('AI_ATMOSPHERE_ENABLED', 'true')}`,
+    `AI_ATMOSPHERE_CHANCE=${env('AI_ATMOSPHERE_CHANCE', decision.atmosphereChance)}`,
+    '',
+    'Decision:',
+    `Тестовый текст: ${escapeLine(decision.raw || '—')}`,
+    `Ответил бы: ${decision.shouldReply ? 'да' : 'нет'}`,
+    `Причина: ${decision.reason || '—'}`,
+    `Allowed: ${decision.allowed ? 'yes' : 'no'}`,
+    `CanUse: ${decision.canUse ? 'yes' : 'no'}`,
+    `ReplyAll: ${decision.replyAll ? 'yes' : 'no'}`,
+    `Cooldown: ${Math.ceil((decision.interventionCooldownMs || 0) / 1000)} сек`,
+    '',
+    'Последние chat-lines:',
+    lines.length ? lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '—',
+    '',
+    'Проверить конкретный текст:',
+    '/aidebug 2.1 это или нет?',
+  ].join('\n'));
+}
+
 async function linkVkByCodeCommand(peerId, vkUserId, codeInput) {
   const code = cleanText(codeInput).replace(/\D+/g, '');
   if (!code) {
@@ -5648,6 +5729,11 @@ async function handleMessageNew(payload) {
 
   if (/^\/(?:аитест|aiтест|aitest|ai-test|groktest|гроктест)$/i.test(text)) {
     await aiTestCommand(peerId, vkUserId);
+    return;
+  }
+
+  if (/^\/(?:aidebug|аидебаг|ai_debug|ai-debug|debugai|дебагии)(?:\s|$)/i.test(text)) {
+    await aiDebugCommand(peerId, vkUserId, text);
     return;
   }
 

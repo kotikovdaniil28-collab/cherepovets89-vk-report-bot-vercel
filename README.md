@@ -1,6 +1,36 @@
-# CHEREPOVETS VK Bot v43: мягкий AI + Grok Web Search
+# CHEREPOVETS VK Bot v44: AI debug + жёсткий smart-режим
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что исправлено в v44
+
+- В `AI_PASSIVE_REPLY_MODE=smart` бот больше не может отвечать на каждое сообщение из-за старых env:
+  - `AI_OWNER_REPLY_ALL`
+  - `AI_STAFF_REPLY_ALL`
+- Эти переменные теперь работают только если включить полный режим:
+
+```env
+AI_PASSIVE_REPLY_MODE=all
+```
+
+- Добавлена диагностика:
+
+```text
+/aidebug
+/аидебаг
+/aidebug 2.1 это или нет?
+```
+
+Команда показывает:
+- build;
+- тип беседы;
+- passive env;
+- сработал бы автоответ или нет;
+- причину автоответа;
+- последние chat-lines;
+- cooldown.
+
+Build для проверки: `v44-passive-debug`.
 
 ## Что исправлено в v43
 

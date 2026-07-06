@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v46-meme-style-guide';
+const BUILD_VERSION = 'v47-sheet-formula-fix';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;

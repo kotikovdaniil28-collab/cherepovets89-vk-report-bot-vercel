@@ -59,11 +59,11 @@ function formulaString_(value) {
 function hyperlinkFormula_(url, label) {
   const cleanUrl = clean_(url);
   if (!cleanUrl) return '';
-  return `=ГИПЕРССЫЛКА("${formulaString_(cleanUrl)}" ; "${formulaString_(label || cleanUrl)}")`;
+  return `=ГИПЕРССЫЛКА("${formulaString_(cleanUrl)}";"${formulaString_(label || cleanUrl)}")`;
 }
 
 function daysFormula_(dateCell) {
-  return `=ЕСЛИ(${dateCell}=""; ""; СЕГОДНЯ() - ${dateCell})`;
+  return `=ЕСЛИ(${dateCell}="";"";СЕГОДНЯ()-${dateCell})`;
 }
 
 function setLocalizedFormula_(range, formula) {

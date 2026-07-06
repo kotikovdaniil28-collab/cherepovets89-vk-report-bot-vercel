@@ -1,6 +1,35 @@
-# CHEREPOVETS VK Bot v42: AI всем + Grok Web Search
+# CHEREPOVETS VK Bot v43: мягкий AI + Grok Web Search
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что исправлено в v43
+
+- AI больше не отвечает на каждое сообщение в `ai`, `nomod`, `staff`, `candidates`.
+- В `smart`-режиме бот отвечает сам только если:
+  - его явно позвали: `грок, ...`, `бот, ...`, `ии, ...`;
+  - в чате пошёл спор по правилам/пунктам/наказаниям;
+  - сработала редкая атмосферная реплика.
+- Пример умного вмешательства: модераторы спорят `2.1 это или нет`, `мут или бан`, `какой пункт`.
+- Добавлен cooldown умных вмешательств, чтобы бот не влезал каждые 10 секунд.
+- Старый режим “отвечать на всё” можно вернуть только явно:
+
+```env
+AI_PASSIVE_REPLY_MODE=all
+```
+
+Нормальные дефолты:
+
+```env
+AI_PASSIVE_REPLY_MODE=smart
+AI_OWNER_REPLY_ALL=false
+AI_STAFF_REPLY_ALL=false
+AI_SMART_INTERVENTIONS_ENABLED=true
+AI_INTERVENTION_COOLDOWN_MINUTES=12
+AI_INTERVENTION_CONTEXT_LINES=10
+AI_ATMOSPHERE_CHANCE=0.006
+```
+
+Build для проверки: `v43-soft-passive-ai`.
 
 ## Что добавлено в v42
 
@@ -140,8 +169,11 @@ AI_OWNER_INSTRUCTION=
 AI_MAX_OUTPUT_CHARS=6000
 AI_HISTORY_LIMIT=8
 AI_PASSIVE_REPLY_MODE=smart
-AI_OWNER_REPLY_ALL=true
-AI_STAFF_REPLY_ALL=true
+AI_OWNER_REPLY_ALL=false
+AI_STAFF_REPLY_ALL=false
+AI_SMART_INTERVENTIONS_ENABLED=true
+AI_INTERVENTION_COOLDOWN_MINUTES=12
+AI_INTERVENTION_CONTEXT_LINES=10
 XAI_WEB_SEARCH_ENABLED=true
 XAI_SEARCH_MODEL=grok-4.3
 REQUIRE_OWNER_GROUP_TYPE=true
@@ -157,7 +189,7 @@ AI_REPORT_MEMES_ENABLED=true
 AI_REPORT_MEME_CHANCE=0.08
 AI_MEME_SHOW_PROMPT=false
 AI_ATMOSPHERE_ENABLED=true
-AI_ATMOSPHERE_CHANCE=0.025
+AI_ATMOSPHERE_CHANCE=0.006
 AI_IMAGES_BUCKET=vk-ai-images
 ```
 

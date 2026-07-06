@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v42-group-ai-web-search';
+const BUILD_VERSION = 'v43-soft-passive-ai';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -124,6 +124,7 @@ ${Object.entries(MODERATOR_RULES).map(([num, text]) => `${num}. ${text}`).join('
 
 let supabaseClient;
 const memeCooldownByPeer = new Map();
+const aiInterventionCooldownByPeer = new Map();
 const processedMessageKeys = new Map();
 
 function env(name, fallback = '') {
@@ -3521,12 +3522,54 @@ function canAutoAiByText(text) {
   return false;
 }
 
+function looksLikeRulesDiscussion(text) {
+  const raw = cleanText(text).toLowerCase().replace(/ё/g, 'е');
+  if (!raw || raw.startsWith('/')) return false;
+  const hasRuleToken = /(?:\b[1-5]\.\d{1,2}\b|м\d+\.\d+|пункт|правил|регламент|наруш|наказан|мут|бан|пред|строг|устник|устное|варн|выговор|2\.1|3\.1|реклама|оск|флуд|капс|провокац)/i.test(raw);
+  const hasQuestionOrDoubt = /(?:\?|или|это|не\s+это|разве|думаю|считаю|по[-\s]?моему|какой|что выдавать|сколько|подходит|не подходит|спор|нет|да)/i.test(raw);
+  return hasRuleToken && hasQuestionOrDoubt;
+}
+
+function looksLikeDisagreement(lines) {
+  const text = (lines || []).join('\n').toLowerCase().replace(/ё/g, 'е');
+  if (!text) return false;
+  const ruleMentions = (text.match(/(?:\b[1-5]\.\d{1,2}\b|м\d+\.\d+|мут|бан|пред|строг|устник|пункт|правил|наказан)/g) || []).length;
+  const disagreement = /(?:не\s+соглас|не\s+2\.1|это\s+не|нет,|да\s+нет|спор|думаю|считаю|по[-\s]?моему|или\s+же|а\s+если|какой\s+пункт|что\s+выдавать)/i.test(text);
+  return ruleMentions >= 2 && disagreement;
+}
+
+function aiInterventionCooldownReady(peerId) {
+  const cooldownMs = (Number(env('AI_INTERVENTION_COOLDOWN_MINUTES', '12')) || 12) * 60 * 1000;
+  const key = String(peerId);
+  const last = aiInterventionCooldownByPeer.get(key) || 0;
+  if (Date.now() - last < cooldownMs) return false;
+  aiInterventionCooldownByPeer.set(key, Date.now());
+  return true;
+}
+
+async function shouldInterveneInChat(peerId, text) {
+  if (!boolEnv('AI_SMART_INTERVENTIONS_ENABLED', true)) return null;
+  const raw = cleanText(text);
+  if (!raw || raw.startsWith('/')) return null;
+  if (!looksLikeRulesDiscussion(raw)) return null;
+  const lines = await loadPeerChatForMeme(peerId, Number(env('AI_INTERVENTION_CONTEXT_LINES', '10')) || 10).catch(() => []);
+  if (!looksLikeDisagreement([...lines, raw]) && !/[?]|или|что выдавать|какой пункт/i.test(raw)) return null;
+  if (!aiInterventionCooldownReady(peerId)) return null;
+  return [
+    'В чате обсуждают правило или меру наказания. Вмешайся кратко как помощник модерации.',
+    'Не пиши длинную лекцию. Формат: мнение → пункт/мера → что проверить.',
+    'Если фактов мало, так и скажи. Не назначай наказание окончательно.',
+    '',
+    `Последние реплики:\n${[...lines.slice(-9), `@id?: ${raw}`].join('\n')}`,
+  ].join('\n');
+}
+
 async function shouldAtmosphereMessage(peerId, vkUserId, text) {
   if (!boolEnv('AI_ATMOSPHERE_ENABLED', true)) return false;
   if (cleanText(text).startsWith('/')) return false;
   const type = await getGroupType(peerId).catch(() => '');
   if (!['ai', 'staff', 'candidates', 'nomod'].includes(type)) return false;
-  const chance = Number(env('AI_ATMOSPHERE_CHANCE', type === 'ai' ? '0.08' : '0.025'));
+  const chance = Number(env('AI_ATMOSPHERE_CHANCE', type === 'ai' ? '0.012' : '0.006'));
   if (!Number.isFinite(chance) || chance <= 0) return false;
   const seed = `${peerId}:${vkUserId}:${Date.now()}:${Math.random()}`;
   let hash = 0;
@@ -3543,21 +3586,29 @@ async function handlePassiveAi(peerId, vkUserId, text) {
   let question = '';
   const passiveMode = env('AI_PASSIVE_REPLY_MODE', 'smart').toLowerCase();
   const replyAll = passiveMode === 'all'
-    || (type === 'ai' && passiveMode !== 'off')
-    || (type === 'nomod' && passiveMode !== 'off')
-    || (isOwner(vkUserId) && boolEnv('AI_OWNER_REPLY_ALL', true))
-    || (['staff', 'candidates', 'nomod'].includes(type) && boolEnv('AI_STAFF_REPLY_ALL', true));
+    || (isOwner(vkUserId) && boolEnv('AI_OWNER_REPLY_ALL', false))
+    || (['staff', 'candidates', 'nomod', 'ai'].includes(type) && boolEnv('AI_STAFF_REPLY_ALL', false));
 
   if (replyAll && raw && !raw.startsWith('/')) {
     question = raw;
   } else if (canAutoAiByText(raw)) {
     question = raw.replace(/^(?:бот|bot|ч89|ch89|ии|нейро|grok|грок|xai|иксай)[,!\s]+/i, '').trim() || raw;
-  } else if (await shouldAtmosphereMessage(peerId, vkUserId, raw)) {
+  } else {
+    const intervention = await shouldInterveneInChat(peerId, raw);
+    if (intervention) question = intervention;
+  }
+
+  if (!question && passiveMode !== 'off' && await shouldAtmosphereMessage(peerId, vkUserId, raw)) {
+    const lines = await loadPeerChatForMeme(peerId, 8).catch(() => []);
+    if (!aiInterventionCooldownReady(`atmosphere:${peerId}`)) {
+      await rememberFromText(vkUserId, raw).catch(() => null);
+      return false;
+    }
     question = [
       'Напиши короткую живую реплику в чат CHEREPOVETS.',
       `Тип беседы: ${type || 'обычная'}.`,
-      `Последнее сообщение пользователя: ${raw}`,
-      'Без навязчивости, максимум 1-2 строки, по делу или с лёгким настроением.',
+      lines.length ? `Контекст:\n${lines.slice(-8).join('\n')}` : `Последнее сообщение пользователя: ${raw}`,
+      'Не отвечай как техподдержка. Просто органично вставь одну уместную реплику, максимум 1-2 строки.',
     ].join('\n');
   }
 

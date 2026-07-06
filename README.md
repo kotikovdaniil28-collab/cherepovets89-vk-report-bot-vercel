@@ -1,6 +1,40 @@
-# CHEREPOVETS VK Bot v44: AI debug + жёсткий smart-режим
+# CHEREPOVETS VK Bot v46: meme style guide + мягкий AI
 
 Owner этой сборки зафиксирован: `628466808`.
+
+## Что исправлено в v46
+
+- Переписана инструкция для мемов по чату: теперь бот делает не неоновый постер, а выбирает конкретный мем-формат.
+- Добавлены форматы: `image macro`, `two-panel`, `wojak/reaction`, `chat screenshot`, `demotivator`, `object-labeling`.
+- Мем обязан иметь один короткий панчлайн и крупный читаемый текст.
+- Запрещены скучные генерации вида: робот, куча VK-логотипов, эмодзи-спам, молнии, мелкий UI-текст, "ахахаха/поняв/загрузка" без смысла.
+- Юмор направлен на ситуацию в чате, а не на травлю конкретного человека.
+
+Build для проверки: `v46-meme-style-guide`.
+
+## Что исправлено в v45
+
+- Мемы по чату теперь реально проще запускаются:
+  - минимум строк снижен до `3`;
+  - cooldown снижен до `25` минут;
+  - шанс поднят до `0.025`;
+  - cooldown больше не сгорает, если строк чата ещё не хватило.
+- Добавлена ручная генерация:
+
+```text
+/мем
+/мемсейчас
+/meme
+```
+
+- Добавлена диагностика мемов:
+
+```text
+/memedebug
+/мемдебаг
+```
+
+Build для проверки: `v45-meme-debug`.
 
 ## Что исправлено в v44
 
@@ -122,10 +156,10 @@ Build для проверки: `v43-soft-passive-ai`.
 ```env
 AI_MEMES_ENABLED=true
 AI_MEME_GROUP_TYPES=staff,ai,candidates,general,reports,nomod
-AI_MEME_CHANCE=0.012
-AI_MEME_COOLDOWN_MINUTES=45
+AI_MEME_CHANCE=0.025
+AI_MEME_COOLDOWN_MINUTES=25
 AI_MEME_CONTEXT_LINES=14
-AI_MEME_MIN_LINES=5
+AI_MEME_MIN_LINES=3
 AI_REPORT_MEMES_ENABLED=true
 AI_REPORT_MEME_CHANCE=0.08
 AI_MEME_SHOW_PROMPT=false
@@ -211,10 +245,10 @@ AI_REVIEW_REPORTS_ENABLED=true
 AI_REPORT_AUTO_STATUS=true
 AI_MEMES_ENABLED=true
 AI_MEME_GROUP_TYPES=staff,ai,candidates,general,reports,nomod
-AI_MEME_CHANCE=0.012
-AI_MEME_COOLDOWN_MINUTES=45
+AI_MEME_CHANCE=0.025
+AI_MEME_COOLDOWN_MINUTES=25
 AI_MEME_CONTEXT_LINES=14
-AI_MEME_MIN_LINES=5
+AI_MEME_MIN_LINES=3
 AI_REPORT_MEMES_ENABLED=true
 AI_REPORT_MEME_CHANCE=0.08
 AI_MEME_SHOW_PROMPT=false

@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v44-passive-debug';
+const BUILD_VERSION = 'v46-meme-style-guide';
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -3691,7 +3691,7 @@ async function loadPeerChatForMeme(peerId, limit = 14) {
 }
 
 function memeCooldownReady(peerId) {
-  const cooldownMs = (Number(env('AI_MEME_COOLDOWN_MINUTES', '45')) || 45) * 60 * 1000;
+  const cooldownMs = (Number(env('AI_MEME_COOLDOWN_MINUTES', '25')) || 25) * 60 * 1000;
   const key = String(peerId);
   const last = memeCooldownByPeer.get(key) || 0;
   if (Date.now() - last < cooldownMs) return false;
@@ -3699,50 +3699,91 @@ function memeCooldownReady(peerId) {
   return true;
 }
 
-async function shouldCreateChatMeme(peerId, vkUserId, text) {
-  if (!boolEnv('AI_MEMES_ENABLED', true)) return false;
-  if (!xaiApiKey()) return false;
+function memeCooldownRemainingMs(peerId) {
+  const cooldownMs = (Number(env('AI_MEME_COOLDOWN_MINUTES', '25')) || 25) * 60 * 1000;
+  const last = memeCooldownByPeer.get(String(peerId)) || 0;
+  return Math.max(0, cooldownMs - (Date.now() - last));
+}
+
+async function memeDecision(peerId, text, options = {}) {
   const raw = cleanText(text);
-  if (!raw || raw.startsWith('/')) return false;
   const type = await getGroupType(peerId).catch(() => '');
-  if (!memeAllowedGroupTypes().has(type)) return false;
-  const chance = Number(env('AI_MEME_CHANCE', type === 'ai' ? '0.035' : '0.012'));
-  if (!Number.isFinite(chance) || chance <= 0) return false;
-  if (Math.random() > Math.min(chance, 0.15)) return false;
-  if (!memeCooldownReady(peerId)) return false;
   const lines = await loadPeerChatForMeme(peerId, Number(env('AI_MEME_CONTEXT_LINES', '14')) || 14).catch(() => []);
-  return lines.length >= (Number(env('AI_MEME_MIN_LINES', '5')) || 5);
+  const minLines = Number(env('AI_MEME_MIN_LINES', '3')) || 3;
+  const chance = Number(env('AI_MEME_CHANCE', type === 'ai' ? '0.05' : '0.025'));
+  const cooldownMs = memeCooldownRemainingMs(peerId);
+  const forced = options.forced === true;
+
+  if (!boolEnv('AI_MEMES_ENABLED', true)) return { ok: false, reason: 'disabled', type, lines, chance, cooldownMs };
+  if (!xaiApiKey()) return { ok: false, reason: 'no_xai_key', type, lines, chance, cooldownMs };
+  if (!forced && (!raw || raw.startsWith('/'))) return { ok: false, reason: 'command_or_empty', type, lines, chance, cooldownMs };
+  if (!memeAllowedGroupTypes().has(type)) return { ok: false, reason: 'group_type_not_allowed', type, lines, chance, cooldownMs };
+  if (lines.length < minLines) return { ok: false, reason: 'not_enough_lines', type, lines, chance, cooldownMs, minLines };
+  if (!forced && (!Number.isFinite(chance) || chance <= 0)) return { ok: false, reason: 'chance_disabled', type, lines, chance, cooldownMs };
+  if (!forced && Math.random() > Math.min(chance, 0.25)) return { ok: false, reason: 'chance_miss', type, lines, chance, cooldownMs };
+  if (!forced && !memeCooldownReady(peerId)) return { ok: false, reason: 'cooldown', type, lines, chance, cooldownMs: memeCooldownRemainingMs(peerId) };
+  return { ok: true, reason: forced ? 'forced' : 'auto', type, lines, chance, cooldownMs: 0, minLines };
 }
 
 async function buildMemePromptFromChat(peerId, vkUserId, chatLines) {
   const prompt = [
-    'На основе последних реплик чата придумай визуальный мем для VK-беседы CHEREPOVETS.',
-    'Нужна картинка без мелкого текста. Можно смешной абсурд, реакция, игровой/модераторский вайб.',
-    'Не трави конкретного человека, не используй личные данные, не делай дискриминационные шутки.',
-    'Если есть мат/угар, пусть он будет про ситуацию, а не про личность.',
+    'Ты мем-редактор VK-беседы CHEREPOVETS. Твоя задача — не красивый постер, а реально смешной мем по чату.',
     '',
-    'Верни только один промпт для генерации картинки, 1-2 предложения.',
+    'Как выглядит хороший мем:',
+    '1. Есть узнаваемый конфликт/контраст: ожидание vs реальность, модератор vs хаос, "я всё понял" vs "опять 2.1?".',
+    '2. Есть один короткий панчлайн, а не куча случайных слов. Текст на картинке максимум 3-7 слов, крупный и читаемый.',
+    '3. Шутка строится на ситуации из чата, а не на абстрактном "бот смешной".',
+    '4. Визуал должен быть простым: 1-2 персонажа/объекта, понятная эмоция, один главный фокус.',
+    '',
+    'Выбери ОДИН формат:',
+    '- image macro: крупная реакция + верхний/нижний текст в стиле старых мемов;',
+    '- two-panel meme: слева "как должно быть", справа "как вышло";',
+    '- wojak/reaction style: уставший модер, спорщики, кандидат после вопроса;',
+    '- chat screenshot meme: фейковый минималистичный чат с одной смешной репликой;',
+    '- demotivator: чёрная рамка, большое слово, короткая подпись;',
+    '- object-labeling: предметы подписаны ролями из ситуации.',
+    '',
+    'Стиль юмора:',
+    '- русский VK/Discord shitpost, сухой сарказм, абсурд, "модераторский быт";',
+    '- можно немного жёстко и с матом, но без травли конкретного человека;',
+    '- не верь непроверенным обвинениям из чата, шути только над ситуацией.',
+    '',
+    'Запрещено:',
+    '- не делай неоновый рекламный баннер, логотипный постер или "эпичного робота";',
+    '- не набивай картинку эмодзи, VK-логотипами, огнями, молниями и словами "ахахаха/поняв/загрузка", если это не главный панчлайн;',
+    '- не добавляй мелкий нечитаемый текст, случайные меню, таблицы и UI-панели;',
+    '- не изображай реальных людей, не используй личные данные, не делай дискриминационные шутки.',
+    '',
+    'Верни только готовый промпт для генерации картинки. Формат ответа:',
+    'Meme format: <формат>',
+    'Text on image: "<короткий текст>"',
+    'Visual: <1-2 предложения с конкретной сценой>',
     '',
     `Чат:\n${chatLines.slice(-14).join('\n')}`,
   ].join('\n');
   const answer = await askXaiText('ai', prompt, { peerId, vkUserId }).catch(() => '');
-  return cleanText(answer).replace(/^["'`]+|["'`]+$/g, '').slice(0, 900);
+  return cleanText(answer).replace(/^["'`]+|["'`]+$/g, '').slice(0, 1200);
 }
 
 async function maybeCreateChatMeme(peerId, vkUserId, text) {
   await rememberChatLineForMemes(peerId, vkUserId, text);
-  if (!(await shouldCreateChatMeme(peerId, vkUserId, text))) return false;
+  const decision = await memeDecision(peerId, text);
+  if (!decision.ok) return false;
+  return await createChatMemeFromLines(peerId, vkUserId, decision.lines, false);
+}
 
-  const lines = await loadPeerChatForMeme(peerId, Number(env('AI_MEME_CONTEXT_LINES', '14')) || 14).catch(() => []);
+async function createChatMemeFromLines(peerId, vkUserId, lines, forced = false) {
   if (!lines.length) return false;
-
   const typing = await sendMessage(peerId, '🎭 Чат сам напросился на мем...');
   try {
     const memePrompt = await buildMemePromptFromChat(peerId, vkUserId, lines);
     if (!memePrompt) return false;
     const image = await generateXaiImage([
-      'VK meme image, expressive, funny, CHEREPOVETS moderation chat energy.',
-      'No small text, no real people, no personal data.',
+      'Create a funny Russian VK/Discord moderation meme, not a promo poster.',
+      'Use one recognizable meme composition only: image macro, two-panel meme, demotivator, reaction wojak-style meme, chat screenshot meme, or object-labeling meme.',
+      'The image must have one clear joke, one visual focus, and large readable Russian text. Maximum 3-7 words on the image.',
+      'Avoid neon banner style, epic robot mascot, random emoji spam, random VK logos, tiny unreadable UI text, fireworks, lightning overload.',
+      'No real people, no personal data, no targeted harassment.',
       memePrompt,
     ].join('\n'));
     const attachment = await uploadVkMessagePhoto(peerId, image.buffer, image.contentType).catch(error => {
@@ -3762,6 +3803,63 @@ async function maybeCreateChatMeme(peerId, vkUserId, text) {
     console.warn('maybeCreateChatMeme failed:', error.message || error);
     return false;
   }
+}
+
+async function memeCommand(peerId, vkUserId, text) {
+  const match = cleanText(text).match(/^\/(?:мем|мемсейчас|meme|memenow)(?:\s+([\s\S]+))?$/i);
+  if (!match) return false;
+  if (!(await canUseAi(vkUserId, peerId))) {
+    await sendMessage(peerId, '⛔ Мемы доступны в AI-разрешённых беседах.');
+    return true;
+  }
+  const extra = cleanText(match[1] || '');
+  if (extra) await rememberChatLineForMemes(peerId, vkUserId, extra);
+  const decision = await memeDecision(peerId, extra || text, { forced: true });
+  if (!decision.ok) {
+    await sendMessage(peerId, [
+      '🎭 Мем не создан',
+      `Причина: ${decision.reason}`,
+      `Тип беседы: ${decision.type || '—'}`,
+      `Строк чата: ${decision.lines?.length || 0}/${decision.minLines || env('AI_MEME_MIN_LINES', '3')}`,
+      `XAI key: ${xaiApiKey() ? 'есть' : 'нет'}`,
+    ].join('\n'));
+    return true;
+  }
+  await createChatMemeFromLines(peerId, vkUserId, decision.lines, true);
+  return true;
+}
+
+async function memeDebugCommand(peerId, vkUserId, text) {
+  const match = cleanText(text).match(/^\/(?:memedebug|мемдебаг|meme_debug|debugmeme)(?:\s+([\s\S]+))?$/i);
+  if (!match) return false;
+  if (!(await canUseStaffCommands(vkUserId, peerId)) && !isOwner(vkUserId)) {
+    await sendMessage(peerId, '⛔ /memedebug доступен staff-составу.');
+    return true;
+  }
+  const sample = cleanText(match[1] || '');
+  const decision = await memeDecision(peerId, sample || 'тест', { forced: false });
+  await sendLongMessage(peerId, [
+    '🎭 MEME DEBUG',
+    '━━━━━━━━━━━━━━━━',
+    `Build: ${BUILD_VERSION}`,
+    `Тип беседы: ${decision.type || '—'}`,
+    `Создал бы: ${decision.ok ? 'да' : 'нет'}`,
+    `Причина: ${decision.reason}`,
+    `AI_MEMES_ENABLED=${env('AI_MEMES_ENABLED', 'true')}`,
+    `AI_MEME_GROUP_TYPES=${env('AI_MEME_GROUP_TYPES', 'staff,ai,candidates,general,reports,nomod')}`,
+    `AI_MEME_CHANCE=${env('AI_MEME_CHANCE', decision.chance || '')}`,
+    `AI_MEME_COOLDOWN_MINUTES=${env('AI_MEME_COOLDOWN_MINUTES', '25')}`,
+    `Cooldown: ${Math.ceil((decision.cooldownMs || 0) / 1000)} сек`,
+    `Строк: ${decision.lines?.length || 0}/${decision.minLines || env('AI_MEME_MIN_LINES', '3')}`,
+    `XAI key: ${xaiApiKey() ? 'есть' : 'нет'}`,
+    '',
+    'Последние строки:',
+    decision.lines?.length ? decision.lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '—',
+    '',
+    'Принудительно создать:',
+    '/мем',
+  ].join('\n'));
+  return true;
 }
 
 async function maybeCreateReportMeme(peerId, vkUserId, sessionData, result) {
@@ -5750,6 +5848,8 @@ async function handleMessageNew(payload) {
   if (await rulesCommand(peerId, vkUserId, text)) return;
   if (await handleGroupCommand(peerId, vkUserId, text)) return;
   if (await handleOwnerAiInstructionCommand(peerId, vkUserId, text)) return;
+  if (await memeDebugCommand(peerId, vkUserId, text)) return;
+  if (await memeCommand(peerId, vkUserId, text)) return;
   if (await handleImageCommand(peerId, vkUserId, text)) return;
   if (await handleVisionCommand(peerId, vkUserId, text, message)) return;
   if (await handleAiCommand(peerId, vkUserId, text)) return;

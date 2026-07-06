@@ -1,6 +1,6 @@
 {
   "name": "cherepovets89-vk-report-bot-vercel-xai",
-  "version": "44.0.0",
+  "version": "46.0.0",
   "private": true,
   "description": "VK Callback API bot for CHEREPOVETS reports, moderation, Google Sheets, staff workflows, xAI/Grok chat, Grok Vision, Grok Imagine, per-user AI memory, welcome messages and group rules.",
   "scripts": {

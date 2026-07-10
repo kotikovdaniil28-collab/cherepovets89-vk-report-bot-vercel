@@ -1,4 +1,10 @@
-# CHEREPOVETS VK Bot v49: silent callback UI
+# CHEREPOVETS VK Bot v50: callback payload fix
+
+## Что исправлено в v50
+
+- Входящий payload кнопок VK теперь читается из правильного поля `object.payload`.
+- Убрана ложная ошибка `Кнопка устарела` для новых callback-кнопок.
+- Добавлена совместимость с ранее опубликованными кнопками формата `{ command: ... }`.
 
 Owner этой сборки зафиксирован: `628466808`.
 

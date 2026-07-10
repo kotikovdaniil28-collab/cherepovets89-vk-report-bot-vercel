@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v49-silent-callback-ui';
+const BUILD_VERSION = 'v50-vk-payload-callback-fix';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -4966,9 +4966,21 @@ async function handleMessageEvent(payload) {
     peerId: String(object.peer_id || ''),
     conversationMessageId: Number(object.conversation_message_id || 0),
   };
-  const data = typeof object.event_data === 'string'
-    ? (parseJsonMaybe(object.event_data) || {})
-    : (object.event_data || {});
+  // VK sends the keyboard callback payload in object.payload.
+  // object.event_data belongs to messages.sendMessageEventAnswer and was
+  // mistakenly treated as the incoming payload in v49.
+  const rawData = object.payload ?? object.event_payload ?? object.event_data ?? {};
+  let data = typeof rawData === 'string'
+    ? (parseJsonMaybe(rawData) || {})
+    : (rawData || {});
+  // Keep already published keyboards working as well. Some older cards used
+  // { command: "/..." } without an explicit action wrapper.
+  if (typeof data.payload === 'string') {
+    data = { ...(parseJsonMaybe(data.payload) || {}), ...data };
+  } else if (data.payload && typeof data.payload === 'object') {
+    data = { ...data.payload, ...data };
+  }
+  if (!data.action && data.command) data.action = 'run_command';
   if (!event.eventId || !event.userId || !event.peerId) return;
 
   try {

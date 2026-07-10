@@ -18,7 +18,46 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v47-sheet-formula-fix';
+const BUILD_VERSION = 'v48-review-career-dashboard';
+const REPORT_STATUS_XP = Object.freeze({
+  'Норма': 15,
+  'Перенорма': 30,
+  'Натяг': 7,
+  'Герой дня': 60,
+  'Не засчитано': 0,
+});
+const REPORT_REJECT_REASONS = Object.freeze({
+  none: '',
+  no_proof: 'Нет или недостаточно доказательств',
+  not_enough_work: 'Недостаточный объём работы',
+  wrong_date: 'Неверная дата отчёта',
+  duplicate: 'Дубликат отчёта',
+  rules: 'Работа не соответствует требованиям',
+});
+const CAREER_RANKS = Object.freeze({
+  junior_moderator: { title: 'Младший модератор', short: 'ММ', next: 'moderator' },
+  moderator: { title: 'Модератор', short: 'М', next: 'senior_moderator' },
+  senior_moderator: { title: 'Старший модератор', short: 'СМ', next: '' },
+  km: { title: 'Куратор модерации', short: 'КМ', next: '' },
+  zgm: { title: 'Заместитель главного модератора', short: 'ЗГМ', next: '' },
+  gm: { title: 'Главный модератор', short: 'ГМ', next: '' },
+});
+const SHEET_POSITION_TO_RANK = Object.freeze({
+  'ММ': 'junior_moderator',
+  'М': 'moderator',
+  'СМ': 'senior_moderator',
+  'КМ': 'km',
+  'ЗГМ': 'zgm',
+  'ГМ': 'gm',
+});
+const RANK_TO_SHEET_POSITION = Object.freeze({
+  junior_moderator: 'ММ',
+  moderator: 'М',
+  senior_moderator: 'СМ',
+  km: 'КМ',
+  zgm: 'ЗГМ',
+  gm: 'ГМ',
+});
 const AI_MAX_OUTPUT_CHARS = 6000;
 const AI_MEMORY_LIMIT = 16;
 const AI_CHAT_TRIGGER_RE = /(?:^|\s)(?:бот|ч89|ch89|ии|нейро|grok|грок|xai|иксай)(?:[\s,!.?:]|$)/i;
@@ -677,6 +716,35 @@ async function sendMessage(peerId, text, options = {}) {
   return null;
 }
 
+async function editMessage(peerId, conversationMessageId, text, options = {}) {
+  const params = {
+    peer_id: String(peerId),
+    conversation_message_id: String(conversationMessageId),
+    message: cleanText(text).slice(0, MAX_VK_MESSAGE),
+  };
+  if (options.keyboard !== undefined) {
+    params.keyboard = typeof options.keyboard === 'string'
+      ? options.keyboard
+      : JSON.stringify(options.keyboard || { inline: true, buttons: [] });
+  }
+  if (options.attachment) {
+    params.attachment = Array.isArray(options.attachment)
+      ? options.attachment.filter(Boolean).join(',')
+      : String(options.attachment);
+  }
+  return await vkApi('messages.edit', params);
+}
+
+async function answerMessageEvent(eventId, userId, peerId, text, type = 'show_snackbar') {
+  if (!eventId) return null;
+  return await vkApi('messages.sendMessageEventAnswer', {
+    event_id: String(eventId),
+    user_id: String(userId),
+    peer_id: String(peerId),
+    event_data: JSON.stringify({ type, text: cleanText(text).slice(0, 90) }),
+  });
+}
+
 function splitVkText(text, max = MAX_VK_MESSAGE - 150) {
   const raw = cleanText(text);
   if (!raw) return [];
@@ -712,6 +780,76 @@ function vkTextButton(label, command, color = 'secondary') {
       payload: JSON.stringify({ command }),
     },
     color,
+  };
+}
+
+function vkCallbackButton(label, payload, color = 'secondary') {
+  return {
+    action: {
+      type: 'callback',
+      label,
+      payload: typeof payload === 'string' ? payload : JSON.stringify(payload || {}),
+    },
+    color,
+  };
+}
+
+function reportReviewKeyboard(reportId, view = 'main') {
+  const id = String(reportId || '');
+  if (!id) return { inline: true, buttons: [] };
+  if (view === 'approve') {
+    return {
+      inline: true,
+      buttons: [
+        [
+          vkCallbackButton('Норма · 15 XP', { action: 'report_decide', reportId: id, status: 'Норма' }, 'positive'),
+          vkCallbackButton('Перенорма · 30 XP', { action: 'report_decide', reportId: id, status: 'Перенорма' }, 'positive'),
+        ],
+        [
+          vkCallbackButton('Натяг · 7 XP', { action: 'report_decide', reportId: id, status: 'Натяг' }, 'primary'),
+          vkCallbackButton('Герой дня · 60 XP', { action: 'report_decide', reportId: id, status: 'Герой дня' }, 'primary'),
+        ],
+        [vkCallbackButton('‹ Назад', { action: 'report_menu', reportId: id, view: 'main' })],
+      ],
+    };
+  }
+  if (view === 'reject') {
+    return {
+      inline: true,
+      buttons: [
+        [vkCallbackButton('Просто отказать', { action: 'report_reject', reportId: id, reason: 'none' }, 'negative')],
+        [
+          vkCallbackButton('Нет доказательств', { action: 'report_reject', reportId: id, reason: 'no_proof' }, 'negative'),
+          vkCallbackButton('Мало работы', { action: 'report_reject', reportId: id, reason: 'not_enough_work' }, 'negative'),
+        ],
+        [
+          vkCallbackButton('Неверная дата', { action: 'report_reject', reportId: id, reason: 'wrong_date' }, 'negative'),
+          vkCallbackButton('Дубликат', { action: 'report_reject', reportId: id, reason: 'duplicate' }, 'negative'),
+        ],
+        [vkCallbackButton('Не по требованиям', { action: 'report_reject', reportId: id, reason: 'rules' }, 'negative')],
+        [vkCallbackButton('‹ Назад', { action: 'report_menu', reportId: id, view: 'main' })],
+      ],
+    };
+  }
+  return {
+    inline: true,
+    buttons: [
+      [
+        vkCallbackButton('Одобрить', { action: 'report_menu', reportId: id, view: 'approve' }, 'positive'),
+        vkCallbackButton('Отказать', { action: 'report_menu', reportId: id, view: 'reject' }, 'negative'),
+      ],
+    ],
+  };
+}
+
+function promotionKeyboard(alertId) {
+  const id = String(alertId || '');
+  return {
+    inline: true,
+    buttons: [[
+      vkCallbackButton('Повысить', { action: 'promotion_decide', alertId: id, decision: 'promote' }, 'positive'),
+      vkCallbackButton('Отложить на 2 дня', { action: 'promotion_decide', alertId: id, decision: 'postpone' }),
+    ]],
   };
 }
 
@@ -1124,6 +1262,14 @@ function docUrlFromAttachment(attachment) {
   return doc.url;
 }
 
+function vkAttachmentId(attachment) {
+  if (!attachment) return '';
+  const type = attachment.type || (attachment.photo ? 'photo' : attachment.doc ? 'doc' : '');
+  const item = attachment[type] || attachment.photo || attachment.doc;
+  if (!item || item.owner_id == null || item.id == null || !['photo', 'doc'].includes(type)) return '';
+  return `${type}${item.owner_id}_${item.id}${item.access_key ? `_${item.access_key}` : ''}`;
+}
+
 function imageUrlsFromMessage(message) {
   const urls = [];
   const collect = item => {
@@ -1142,12 +1288,13 @@ function imageUrlsFromMessage(message) {
   return Array.from(new Set(urls)).slice(0, 4);
 }
 
-async function uploadRemoteProof(url, sessionData, index, fallbackKind = 'vk_photo') {
+async function uploadRemoteProof(url, sessionData, index, fallbackKind = 'vk_photo', vkAttachment = '') {
   const fallback = {
     url,
     name: fallbackKind === 'vk_doc' ? `VK файл ${index + 1}` : `VK фото ${index + 1}`,
     kind: fallbackKind,
     fallback: true,
+    vkAttachment,
   };
 
   const bucket = env('REPORT_PROOFS_BUCKET', '');
@@ -1190,6 +1337,7 @@ async function uploadRemoteProof(url, sessionData, index, fallbackKind = 'vk_pho
       kind: fallbackKind === 'vk_doc' ? 'vk_doc_storage' : 'vk_photo_storage',
       bucket,
       path,
+      vkAttachment,
     };
   } catch (_) {
     return fallback;
@@ -1217,7 +1365,7 @@ async function extractProofs(message, sessionData) {
     if (attachment.type === 'photo' || attachment.photo) {
       const url = photoUrlFromAttachment(attachment);
       if (url) {
-        proofs.push(await uploadRemoteProof(url, sessionData, fileIndex, 'vk_photo'));
+        proofs.push(await uploadRemoteProof(url, sessionData, fileIndex, 'vk_photo', vkAttachmentId(attachment)));
         fileIndex += 1;
       }
       continue;
@@ -1226,7 +1374,7 @@ async function extractProofs(message, sessionData) {
     if (attachment.type === 'doc' || attachment.doc) {
       const url = docUrlFromAttachment(attachment);
       if (url) {
-        proofs.push(await uploadRemoteProof(url, sessionData, fileIndex, 'vk_doc'));
+        proofs.push(await uploadRemoteProof(url, sessionData, fileIndex, 'vk_doc', vkAttachmentId(attachment)));
         fileIndex += 1;
       }
     }
@@ -1347,8 +1495,9 @@ async function createReport(sessionData, message) {
 
   const now = new Date();
   const aiReview = await reviewReportWithAi(sessionData, proofs);
-  const autoStatus = boolEnv('AI_REPORT_AUTO_STATUS', true);
-  const status = autoStatus && aiReview?.siteStatus ? aiReview.siteStatus : 'На проверке';
+  // Final verdict is always made by leadership. AI is a private hint only.
+  const autoStatus = false;
+  const status = 'На проверке';
   const payload = {
     version: 'vk_bot_vercel_v3_ai_staff',
     source: 'vk_callback_vercel',
@@ -1395,20 +1544,40 @@ async function createReport(sessionData, message) {
 
   if (error) return { ok: false, message: `❌ Отчёт не сохранился: ${userFacingError(error)}` };
 
+  try {
+    await getSupabase().from('moderator_report_reviews').upsert({
+      report_id: reportId,
+      site_user_id: String(sessionData.linked.site_user_id),
+      email: sessionData.linked.email || '',
+      vk_user_id: String(sessionData.vkUserId),
+      requested_status: sessionData.quality,
+      final_status: null,
+      xp: 0,
+      verdict: 'pending',
+      source: 'vk_bot',
+      notification_status: 'waiting',
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    }, { onConflict: 'report_id' });
+  } catch (reviewLogError) {
+    console.warn('moderator_report_reviews pending log failed:', reviewLogError.message || reviewLogError);
+  }
+
   const summary = [
-    '✅ ОТЧЁТ ОТПРАВЛЕН',
+    '🧾 НОВЫЙ ОТЧЁТ · НУЖНО РЕШЕНИЕ',
     '',
     `👤 Модератор: ${escapeLine(sessionData.nick)}`,
     `📅 Дата: ${sessionData.date}`,
     `🏷 Тип: ${sessionData.quality}`,
     `🧾 Работа: ${escapeLine(sessionData.work)}`,
     `📎 Доказательств: ${proofs.length}`,
+    proofs[0]?.url ? `🔗 Открыть доказательство: ${escapeLine(proofs[0].url)}` : '',
     `🕒 Статус: ${status}`,
     `#️⃣ ID: ${reportId}`,
     aiReview ? '' : '',
     aiReview ? [
-      '🤖 AI-вердикт:',
-      `• Решение: ${aiReview.siteStatus}`,
+      '🤖 Подсказка AI (не является решением):',
+      `• Рекомендация: ${aiReview.siteStatus}`,
       `• Уверенность: ${Math.round(aiReview.confidence * 100)}%`,
       aiReview.reason ? `• Причина: ${aiReview.reason}` : '',
       aiReview.check ? `• Проверить: ${aiReview.check}` : '',
@@ -1417,6 +1586,67 @@ async function createReport(sessionData, message) {
   ].join('\n');
 
   return { ok: true, message: summary, reportId, proofs, aiReview, status };
+}
+
+async function proofVkAttachments(peerId, proofs, preferNative = true) {
+  const attachments = [];
+  if (preferNative) {
+    for (const proof of proofs || []) {
+      if (proof?.vkAttachment && !attachments.includes(proof.vkAttachment)) {
+        attachments.push(proof.vkAttachment);
+        if (attachments.length >= 4) break;
+      }
+    }
+  }
+  if (attachments.length) return attachments;
+
+  // Reports submitted with a URL or storage copy still get a real VK image when possible.
+  for (const proof of proofs || []) {
+    const url = cleanText(proof?.url);
+    if (!/^https?:\/\//i.test(url) || /\.pdf(?:[?#]|$)/i.test(url)) continue;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const contentType = response.headers.get('content-type') || '';
+      if (!/^image\/(?:jpeg|png|webp)/i.test(contentType)) continue;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (!buffer.length || buffer.length > 18 * 1024 * 1024) continue;
+      attachments.push(await uploadVkMessagePhoto(peerId, buffer, contentType));
+      if (attachments.length >= 4) break;
+    } catch (error) {
+      console.warn('proof VK reupload failed:', error.message || error);
+    }
+  }
+  return attachments;
+}
+
+async function sendReportReviewCard(peerId, result) {
+  let attachments = await proofVkAttachments(peerId, result.proofs);
+  let conversationMessageId;
+  try {
+    conversationMessageId = await sendMessage(peerId, result.message, {
+      keyboard: reportReviewKeyboard(result.reportId),
+      attachment: attachments,
+    });
+  } catch (error) {
+    console.warn('native report attachment failed, retrying upload:', error.message || error);
+    attachments = await proofVkAttachments(peerId, result.proofs, false);
+    conversationMessageId = await sendMessage(peerId, result.message, {
+      keyboard: reportReviewKeyboard(result.reportId),
+      attachment: attachments,
+    });
+  }
+  try {
+    await getSupabase().from('moderator_report_reviews').update({
+      staff_peer_id: String(peerId),
+      staff_conversation_message_id: conversationMessageId || null,
+      staff_message_text: result.message,
+      staff_attachments: attachments.join(','),
+    }).eq('report_id', result.reportId);
+  } catch (error) {
+    console.warn('report staff card log failed:', error.message || error);
+  }
+  return conversationMessageId;
 }
 
 function parseInlineReport(text) {
@@ -1516,7 +1746,7 @@ async function startInlineReport(peerId, vkUserId, message, parsed) {
   }
 
   if (cleanupEnabled()) await deleteMessagesBestEffort(peerId, data.cleanupMessageIds);
-  await sendMessage(peerId, result.message);
+  await sendReportReviewCard(peerId, result);
   await maybeCreateReportMeme(peerId, vkUserId, data, result);
 }
 
@@ -1596,13 +1826,40 @@ async function handleSession(peerId, vkUserId, message, session) {
 
     await deleteSession(peerId, vkUserId);
     if (cleanupEnabled()) await deleteMessagesBestEffort(peerId, data.cleanupMessageIds || []);
-    await sendMessage(peerId, result.message);
+    await sendReportReviewCard(peerId, result);
     await maybeCreateReportMeme(peerId, vkUserId, data, result);
   }
 }
 
 function formatUserLine(user, prefix = '•') {
   return `${prefix} ${escapeLine(user.nickname || user.email || user.user_id)} — ${user.email || 'без email'}\n  ID: ${user.user_id}`;
+}
+
+async function ensureJuniorCareer(siteUserId, options = {}) {
+  const { data: existing, error: selectError } = await getSupabase()
+    .from('moderator_careers')
+    .select('site_user_id,rank')
+    .eq('site_user_id', String(siteUserId))
+    .maybeSingle();
+  if (selectError && !/does not exist|schema cache/i.test(String(selectError.message || ''))) throw selectError;
+  if (existing) {
+    await getSupabase().from('moderator_careers').update({ active: true }).eq('site_user_id', String(siteUserId));
+    return existing;
+  }
+  const now = new Date().toISOString();
+  const { error } = await getSupabase().from('moderator_careers').insert([{
+    site_user_id: String(siteUserId),
+    email: options.email || '',
+    nickname: options.nickname || '',
+    vk_user_id: options.vkUserId ? String(options.vkUserId) : null,
+    rank: 'junior_moderator',
+    active: true,
+    appointed_at: now,
+    rank_started_at: now,
+    source: options.source || 'vk_grant',
+  }]);
+  if (error && !/does not exist|schema cache/i.test(String(error.message || ''))) throw error;
+  return { site_user_id: String(siteUserId), rank: 'junior_moderator' };
 }
 
 async function listModerators(peerId) {
@@ -1644,6 +1901,12 @@ async function grantModerator(peerId, vkUserId, targetVkId) {
 
   const stats = await getUserStats(linked.site_user_id, linked.email);
   const nick = stats?.nickname || linked.nickname || linked.email || linked.site_user_id;
+
+  await ensureJuniorCareer(linked.site_user_id, {
+    email: linked.email || stats?.email || '',
+    nickname: nick,
+    vkUserId: targetVkId,
+  });
 
   const { data: existing } = await getSupabase()
     .from('reports')
@@ -1691,6 +1954,7 @@ async function revokeModerator(peerId, vkUserId, targetVkId) {
     .eq('status', 'moderator');
 
   if (error) throw error;
+  await getSupabase().from('moderator_careers').update({ active: false }).eq('site_user_id', String(linked.site_user_id));
   await sendMessage(peerId, `🧹 Статус модератора снят.\n🆔 VK: ${targetVkId}`);
 }
 
@@ -1708,6 +1972,13 @@ async function grantModeratorByUser(peerId, vkUserId, user, label = '') {
 
   const siteUserId = String(user.user_id);
   const nick = user.nickname || user.email || siteUserId;
+
+  const { data: linkedRow } = await getSupabase().from('vk_links').select('vk_user_id').eq('site_user_id', siteUserId).maybeSingle();
+  await ensureJuniorCareer(siteUserId, {
+    email: user.email || '',
+    nickname: nick,
+    vkUserId: linkedRow?.vk_user_id || '',
+  });
 
   const { data: existing, error: selectError } = await getSupabase()
     .from('reports')
@@ -1755,6 +2026,7 @@ async function revokeModeratorByUser(peerId, vkUserId, user) {
     .eq('status', 'moderator');
 
   if (error) throw error;
+  await getSupabase().from('moderator_careers').update({ active: false }).eq('site_user_id', String(user.user_id));
   await sendMessage(peerId, `🧹 Статус модератора снят\n👤 ${escapeLine(user.nickname || user.email || user.user_id)}\n📧 ${escapeLine(user.email || '—')}`);
 }
 
@@ -2201,6 +2473,340 @@ async function postStaffSheetRow(row) {
     throw new Error(details);
   }
   return data;
+}
+
+async function callStaffSheetMode(mode, params = {}) {
+  const url = staffSheetPostUrl();
+  if (!url) throw new Error('staff sheet integration is not configured');
+  const u = new URL(url);
+  u.searchParams.set('mode', mode);
+  const secret = staffSheetPostSecret();
+  if (secret) u.searchParams.set('secret', secret);
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value !== undefined && value !== null && value !== '') u.searchParams.set(key, String(value));
+  }
+  const response = await fetch(u.toString(), { method: 'GET', redirect: 'follow' });
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text || '{}'); } catch (_) { data = { ok: false, error: text.replace(/\s+/g, ' ').slice(0, 240) }; }
+  if (!response.ok || !data.ok) throw new Error(cleanText(data.error || data.message || `Apps Script HTTP ${response.status}`));
+  return data;
+}
+
+function sheetDateIso(value) {
+  const raw = cleanText(value);
+  if (/^20\d{2}-\d{2}-\d{2}$/.test(raw)) return `${raw}T09:00:00+03:00`;
+  const ru = raw.match(/^(\d{1,2})\.(\d{1,2})\.(20\d{2})$/);
+  if (ru) return `${ru[3]}-${String(ru[2]).padStart(2, '0')}-${String(ru[1]).padStart(2, '0')}T09:00:00+03:00`;
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : '';
+}
+
+function careerRankTitle(rank) {
+  return CAREER_RANKS[rank]?.title || rank || '—';
+}
+
+async function ensureLegacySiteRole(siteUserId, email, status, enabled = true, note = '') {
+  const serviceEmail = String(email);
+  const uid = String(siteUserId);
+  const existing = await getSupabase()
+    .from('reports')
+    .select('id')
+    .eq('email', serviceEmail)
+    .eq('link', uid)
+    .eq('status', status)
+    .limit(1);
+  if (existing.error) throw existing.error;
+  if (enabled && !(existing.data || []).length) {
+    const { error } = await getSupabase().from('reports').insert([{
+      id: `role_sync_${Date.now()}_${Math.random().toString(16).slice(2, 9)}`,
+      email: serviceEmail,
+      link: uid,
+      date: note || `Синхронизация Discord состава · ${moscowDateTime()}`,
+      status,
+      xp: 0,
+    }]);
+    if (error) throw error;
+  }
+  if (!enabled && (existing.data || []).length) {
+    const { error } = await getSupabase()
+      .from('reports')
+      .delete()
+      .eq('email', serviceEmail)
+      .eq('link', uid)
+      .eq('status', status);
+    if (error) throw error;
+  }
+}
+
+async function syncRosterMember(row) {
+  const rank = SHEET_POSITION_TO_RANK[cleanText(row.position).toUpperCase()];
+  if (!rank) return { ok: false, nickname: row.nickname || '—', reason: `неизвестная должность ${row.position || '—'}` };
+  const vkUserId = await resolveVkTarget(row.vkUrl || '');
+  if (!vkUserId) return { ok: false, nickname: row.nickname || '—', reason: 'не удалось определить VK' };
+  const linked = await getLinkedUser(vkUserId).catch(() => null);
+  if (!linked) return { ok: false, nickname: row.nickname || '—', vkUserId, reason: 'VK не привязан к сайту' };
+  const stats = await getUserStats(linked.site_user_id, linked.email).catch(() => null);
+  const appointedAt = sheetDateIso(row.placementDate) || new Date().toISOString();
+  const rankStartedAt = rank === 'junior_moderator'
+    ? appointedAt
+    : (sheetDateIso(row.promotionDate) || appointedAt);
+  const now = new Date().toISOString();
+
+  const { error: careerError } = await getSupabase().from('moderator_careers').upsert({
+    site_user_id: String(linked.site_user_id),
+    email: linked.email || stats?.email || '',
+    nickname: row.nickname || linked.nickname || stats?.nickname || '',
+    vk_user_id: String(vkUserId),
+    rank,
+    active: true,
+    appointed_at: appointedAt,
+    rank_started_at: rankStartedAt,
+    source: 'google_sheet',
+    source_sheet: row.sheetName || 'Discord состав',
+    source_row: Number(row.rowNumber) || null,
+    last_synced_at: now,
+    updated_at: now,
+  }, { onConflict: 'site_user_id' });
+  if (careerError) throw careerError;
+
+  await ensureLegacySiteRole(linked.site_user_id, 'USER_ROLE', 'moderator', true, `Должность ${row.position} из Discord состава`);
+  const leadership = ['km', 'zgm', 'gm'].includes(rank);
+  await ensureLegacySiteRole(linked.site_user_id, 'ADMIN_ROLE', 'leadership', leadership, `Руководство ${row.position} из Discord состава`);
+
+  const botRole = rank === 'gm' ? 'gm' : rank === 'zgm' ? 'zgm' : rank === 'km' ? 'km' : 'moderator';
+  const { error: staffRoleError } = await getSupabase().from('vk_staff_roles').upsert({
+    vk_user_id: String(vkUserId),
+    role: botRole,
+    title: row.position,
+    note: `Discord состав · строка ${row.rowNumber}`,
+    granted_by_vk_user_id: 'sheet_sync',
+    updated_at: now,
+  }, { onConflict: 'vk_user_id' });
+  if (staffRoleError) throw staffRoleError;
+
+  return { ok: true, nickname: row.nickname, position: row.position, rank, vkUserId, siteUserId: linked.site_user_id };
+}
+
+async function syncStaffRoster(options = {}) {
+  const roster = await callStaffSheetMode('staff_roster');
+  const results = [];
+  for (const sourceRow of roster.rows || []) {
+    const row = { ...sourceRow, sheetName: roster.sheetName || 'Discord состав' };
+    try {
+      results.push(await syncRosterMember(row));
+    } catch (error) {
+      results.push({ ok: false, nickname: row.nickname || '—', position: row.position || '', reason: userFacingError(error) });
+    }
+  }
+  const synced = results.filter(x => x.ok);
+  const skipped = results.filter(x => !x.ok);
+  const summary = { ok: true, sheetName: roster.sheetName || 'Discord состав', synced, skipped, total: results.length };
+  if (options.peerId) {
+    await sendLongMessage(options.peerId, [
+      '🔄 СИНХРОНИЗАЦИЯ СОСТАВА',
+      '━━━━━━━━━━━━━━━━',
+      `📄 Лист: ${escapeLine(summary.sheetName)}`,
+      `✅ Обновлено на сайте: ${synced.length}`,
+      `⚠️ Требуют внимания: ${skipped.length}`,
+      '',
+      synced.length ? synced.map(x => `• ${escapeLine(x.nickname)} — ${x.position}`).join('\n') : '',
+      skipped.length ? '\nНе синхронизированы:\n' + skipped.map(x => `• ${escapeLine(x.nickname)}${x.position ? ` (${x.position})` : ''}: ${escapeLine(x.reason)}`).join('\n') : '',
+    ].filter(Boolean).join('\n'));
+  }
+  return summary;
+}
+
+function reportDateMs(row) {
+  const payload = reportPayloadFromRow(row || {});
+  const raw = cleanText(payload.date || row?.created_at || '');
+  const iso = /^20\d{2}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00+03:00` : raw;
+  const parsed = new Date(iso).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function promotionProgress(career) {
+  const started = new Date(career.rank_started_at || career.appointed_at || Date.now()).getTime();
+  const days = Math.max(0, Math.floor((Date.now() - started) / 86400000));
+  const { data, error } = await getSupabase()
+    .from('reports')
+    .select('*')
+    .eq('email', String(career.email || ''))
+    .in('status', ['Норма', 'Перенорма', 'Натяг', 'Герой дня'])
+    .limit(1000);
+  if (error) throw error;
+  const reports = (data || []).filter(row => !started || reportDateMs(row) >= started);
+  const high = reports.filter(row => ['Перенорма', 'Герой дня'].includes(row.status));
+  const rules = career.rank === 'junior_moderator'
+    ? { regularDays: 7, regularReports: 7, earlyDays: 5, earlyHigh: 5 }
+    : career.rank === 'moderator'
+      ? { regularDays: 14, regularReports: 14, earlyDays: 10, earlyHigh: 10 }
+      : null;
+  if (!rules) return { eligible: false, days, approved: reports.length, high: high.length, rules: null };
+  const early = days >= rules.earlyDays && high.length >= rules.earlyHigh;
+  const regular = days >= rules.regularDays && reports.length >= rules.regularReports;
+  return {
+    eligible: early || regular,
+    type: early ? 'early' : regular ? 'regular' : '',
+    days,
+    approved: reports.length,
+    high: high.length,
+    rules,
+  };
+}
+
+function promotionAlertText(career, progress) {
+  const next = CAREER_RANKS[career.rank]?.next;
+  return [
+    '📈 МОДЕРАТОР ГОТОВ К ПОВЫШЕНИЮ',
+    '━━━━━━━━━━━━━━━━',
+    `👤 ${escapeLine(career.nickname || career.email || career.site_user_id)}`,
+    `🏷 Сейчас: ${careerRankTitle(career.rank)}`,
+    `🎯 Следующая должность: ${careerRankTitle(next)}`,
+    `📅 На должности: ${progress.days} дн.`,
+    `🧾 Одобрено отчётов: ${progress.approved}`,
+    `🔥 Перенорма / Герой дня: ${progress.high}`,
+    `⚡ Основание: ${progress.type === 'early' ? 'досрочное повышение' : 'обычное повышение'}`,
+    '',
+    'Бот ничего не меняет автоматически — решение принимает руководство.',
+  ].join('\n');
+}
+
+async function checkPromotionEligibility(options = {}) {
+  const staffPeer = String(options.peerId || await getFirstGroupPeerIdByType('staff').catch(() => '') || env('STAFF_PEER_ID') || '');
+  if (!staffPeer) return { ok: false, error: 'STAFF group is not configured', created: 0 };
+  const { data: careers, error } = await getSupabase()
+    .from('moderator_careers')
+    .select('*')
+    .eq('active', true)
+    .in('rank', ['junior_moderator', 'moderator'])
+    .limit(300);
+  if (error) throw error;
+  let created = 0;
+  for (const career of careers || []) {
+    const progress = await promotionProgress(career);
+    if (!progress.eligible) continue;
+    const next = CAREER_RANKS[career.rank]?.next;
+    const { data: recent } = await getSupabase()
+      .from('moderator_promotion_alerts')
+      .select('*')
+      .eq('site_user_id', String(career.site_user_id))
+      .eq('from_rank', career.rank)
+      .eq('to_rank', next)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const previous = recent?.[0];
+    if (previous?.status === 'pending') continue;
+    if (previous?.status === 'postponed' && new Date(previous.remind_after || 0).getTime() > Date.now()) continue;
+    if (previous?.status === 'promoted') continue;
+
+    const id = `prom_${Date.now()}_${Math.random().toString(16).slice(2, 9)}`;
+    const text = promotionAlertText(career, progress);
+    const cmid = await sendMessage(staffPeer, text, { keyboard: promotionKeyboard(id) });
+    const { error: insertError } = await getSupabase().from('moderator_promotion_alerts').insert([{
+      id,
+      site_user_id: String(career.site_user_id),
+      vk_user_id: career.vk_user_id || null,
+      from_rank: career.rank,
+      to_rank: next,
+      eligibility_type: progress.type,
+      days_on_rank: progress.days,
+      approved_reports: progress.approved,
+      high_reports: progress.high,
+      status: 'pending',
+      staff_peer_id: staffPeer,
+      staff_conversation_message_id: cmid || null,
+    }]);
+    if (insertError) throw insertError;
+    created += 1;
+  }
+  return { ok: true, created, checked: (careers || []).length };
+}
+
+async function handlePromotionDecisionEvent(event, data) {
+  if (!(await canManageSiteModerators(event.userId))) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Доступно только КМ, ЗГМ и ГМ.');
+    return;
+  }
+  const { data: alert, error } = await getSupabase()
+    .from('moderator_promotion_alerts')
+    .select('*')
+    .eq('id', String(data.alertId || ''))
+    .maybeSingle();
+  if (error) throw error;
+  if (!alert || alert.status !== 'pending') {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Это решение уже обработано.');
+    return;
+  }
+  const { data: career, error: careerError } = await getSupabase()
+    .from('moderator_careers')
+    .select('*')
+    .eq('site_user_id', alert.site_user_id)
+    .maybeSingle();
+  if (careerError) throw careerError;
+  if (!career || career.rank !== alert.from_rank) throw new Error('Должность уже изменилась.');
+
+  if (data.decision === 'postpone') {
+    const remindAfter = new Date(Date.now() + 2 * 86400000).toISOString();
+    const { error: postponeError } = await getSupabase().from('moderator_promotion_alerts').update({
+      status: 'postponed',
+      remind_after: remindAfter,
+      decided_by_vk_user_id: event.userId,
+      decided_at: new Date().toISOString(),
+    }).eq('id', alert.id).eq('status', 'pending');
+    if (postponeError) throw postponeError;
+    await editMessage(event.peerId, event.conversationMessageId, [
+      promotionAlertText(career, { days: alert.days_on_rank, approved: alert.approved_reports, high: alert.high_reports, type: alert.eligibility_type }),
+      '',
+      '⏸ Решение отложено на 2 дня.',
+    ].join('\n'), { keyboard: { inline: true, buttons: [] } });
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Напомню через 2 дня');
+    return;
+  }
+
+  if (data.decision !== 'promote') throw new Error('Неизвестное решение.');
+  const targetPosition = RANK_TO_SHEET_POSITION[alert.to_rank];
+  const expectedPosition = RANK_TO_SHEET_POSITION[alert.from_rank];
+  if (career.source_row) {
+    await callStaffSheetMode('staff_promote', {
+      rowNumber: career.source_row,
+      position: targetPosition,
+      expectedPosition,
+      expectedNickname: career.nickname || '',
+    });
+  }
+  const now = new Date().toISOString();
+  const { error: updateCareerError } = await getSupabase().from('moderator_careers').update({
+    rank: alert.to_rank,
+    rank_started_at: now,
+    last_synced_at: now,
+    source: 'promotion',
+  }).eq('site_user_id', alert.site_user_id).eq('rank', alert.from_rank);
+  if (updateCareerError) throw updateCareerError;
+  const { error: alertError } = await getSupabase().from('moderator_promotion_alerts').update({
+    status: 'promoted',
+    decided_by_vk_user_id: event.userId,
+    decided_at: now,
+  }).eq('id', alert.id).eq('status', 'pending');
+  if (alertError) throw alertError;
+
+  if (career.vk_user_id) {
+    await sendMessage(career.vk_user_id, [
+      '🎉 ПОЗДРАВЛЯЕМ С ПОВЫШЕНИЕМ!',
+      '━━━━━━━━━━━━━━━━',
+      `🏷 Новая должность: ${careerRankTitle(alert.to_rank)}`,
+      '',
+      'Твоя работа замечена. Продолжай развиваться и помогать команде — впереди ещё много достижений! 🚀',
+    ].join('\n')).catch(() => null);
+  }
+  await editMessage(event.peerId, event.conversationMessageId, [
+    '🎉 ПОВЫШЕНИЕ ОФОРМЛЕНО',
+    '━━━━━━━━━━━━━━━━',
+    `👤 ${escapeLine(career.nickname || career.email || career.site_user_id)}`,
+    `📈 ${careerRankTitle(alert.from_rank)} → ${careerRankTitle(alert.to_rank)}`,
+    career.source_row ? '✅ Сайт и Google-таблица обновлены.' : '✅ Сайт обновлён. Строка Google-таблицы не была привязана.',
+  ].join('\n'), { keyboard: { inline: true, buttons: [] } });
+  await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Модератор повышен');
 }
 
 async function testStaffSheetIntegration(peerId) {
@@ -4124,8 +4730,34 @@ async function reportInfo(peerId, reportId) {
 }
 
 async function updateReportStatus(peerId, vkUserId, reportId, status, xp = null, reason = '') {
-  if (!(await canUseStaffCommands(vkUserId, peerId))) {
-    await sendMessage(peerId, '⛔ Команда доступна владельцу или модератору.');
+  if (!(await canManageSiteModerators(vkUserId))) {
+    await sendMessage(peerId, '⛔ Решения по отчётам доступны КМ, ЗГМ и ГМ.');
+    return;
+  }
+  if (['Принят', 'Отклонено', 'Отказ'].includes(status)) {
+    let finalStatus = 'Не засчитано';
+    if (status === 'Принят') {
+      const { data: source } = await getSupabase().from('reports').select('*').eq('id', reportId).maybeSingle();
+      const requested = source ? reportPayloadFromRow(source).quality : '';
+      const byXp = Object.entries(REPORT_STATUS_XP).find(([, value]) => value === Number(xp));
+      finalStatus = byXp?.[0] && byXp[0] !== 'Не засчитано'
+        ? byXp[0]
+        : requested in REPORT_STATUS_XP && requested !== 'Не засчитано'
+          ? requested
+          : 'Норма';
+    }
+    const result = await decideReport(reportId, {
+      status: finalStatus,
+      reason,
+      actorVkUserId: vkUserId,
+      source: 'vk_command',
+      peerId,
+    });
+    if (!result.ok && result.already) {
+      await sendMessage(peerId, `ℹ️ По отчёту ${reportId} уже принято решение.`);
+      return;
+    }
+    await sendMessage(peerId, `${finalStatus === 'Не засчитано' ? '❌' : '✅'} Отчёт обновлён.\n#️⃣ ID: ${reportId}\n📌 Статус: ${finalStatus}\n⭐ XP: ${result.xp}${reason ? `\n💭 Причина: ${escapeLine(reason)}` : ''}`);
     return;
   }
   const update = { status };
@@ -4134,6 +4766,212 @@ async function updateReportStatus(peerId, vkUserId, reportId, status, xp = null,
   const { error } = await getSupabase().from('reports').update(update).eq('id', reportId);
   if (error) throw error;
   await sendMessage(peerId, `${status === 'Принят' ? '✅' : '❌'} Отчёт обновлён.\n#️⃣ ID: ${reportId}\n📌 Статус: ${status}${xp !== null ? `\n⭐ XP: ${Number(xp)}` : ''}${reason ? `\n💭 Причина: ${escapeLine(reason)}` : ''}`);
+}
+
+async function getReportWithReview(reportId) {
+  const [reportResult, reviewResult] = await Promise.all([
+    getSupabase().from('reports').select('*').eq('id', String(reportId)).maybeSingle(),
+    getSupabase().from('moderator_report_reviews').select('*').eq('report_id', String(reportId)).maybeSingle(),
+  ]);
+  if (reportResult.error) throw reportResult.error;
+  return { report: reportResult.data || null, review: reviewResult.error ? null : (reviewResult.data || null) };
+}
+
+async function reportModeratorVkId(report, review) {
+  if (review?.vk_user_id) return String(review.vk_user_id);
+  const payload = reportPayloadFromRow(report || {});
+  if (payload.vkUserId) return String(payload.vkUserId);
+
+  let query = getSupabase().from('vk_links').select('vk_user_id');
+  if (payload.userId) query = query.eq('site_user_id', String(payload.userId));
+  else if (report?.email) query = query.eq('email', String(report.email));
+  else return '';
+  const { data } = await query.limit(1).maybeSingle();
+  return data?.vk_user_id ? String(data.vk_user_id) : '';
+}
+
+function verdictEncouragement(status) {
+  if (status === 'Герой дня') return 'Это мощный результат — продолжай держать такой уровень! 🔥';
+  if (status === 'Перенорма') return 'Отличная работа сверх нормы. Так держать! 💪';
+  if (status === 'Норма') return 'Норма выполнена уверенно. Хорошая стабильная работа! ✅';
+  if (status === 'Натяг') return 'Отчёт засчитан. В следующий раз постарайся добавить больше работы — всё получится!';
+  return 'Не расстраивайся: исправь недочёты и следующий отчёт обязательно получится лучше. Мы в тебя верим!';
+}
+
+async function notifyModeratorReportDecision(vkUserId, report, status, xp, reason = '') {
+  if (!vkUserId) return { status: 'not_linked', error: 'VK не привязан' };
+  const p = reportPayloadFromRow(report || {});
+  const approved = status !== 'Не засчитано';
+  try {
+    await sendMessage(vkUserId, [
+      approved ? '✅ ОТЧЁТ РАССМОТРЕН' : '❌ ОТЧЁТ НЕ ЗАСЧИТАН',
+      '━━━━━━━━━━━━━━━━',
+      `📅 Дата: ${escapeLine(p.date || '—')}`,
+      `📌 Вердикт: ${status}`,
+      `⭐ Начислено: ${Number(xp || 0)} XP`,
+      reason ? `💭 Причина: ${escapeLine(reason)}` : '',
+      '',
+      verdictEncouragement(status),
+    ].filter(Boolean).join('\n'));
+    return { status: 'sent', error: '' };
+  } catch (error) {
+    return { status: 'failed', error: String(error.message || error).slice(0, 400) };
+  }
+}
+
+async function decideReport(reportId, options = {}) {
+  const status = cleanText(options.status);
+  if (!(status in REPORT_STATUS_XP)) throw new Error('Неизвестный тип отчёта.');
+  const verdict = status === 'Не засчитано' ? 'rejected' : 'approved';
+  const xp = REPORT_STATUS_XP[status];
+  const reasonCode = cleanText(options.reasonCode);
+  const reason = cleanText(options.reason || REPORT_REJECT_REASONS[reasonCode] || '');
+  const { report, review } = await getReportWithReview(reportId);
+  if (!report) throw new Error('Отчёт не найден.');
+  if (review?.verdict && review.verdict !== 'pending') {
+    return { ok: false, already: true, report, review, status: review.final_status || report.status };
+  }
+
+  const { error: reportError } = await getSupabase().from('reports').update({ status, xp }).eq('id', String(reportId));
+  if (reportError) throw reportError;
+
+  const moderatorVkId = await reportModeratorVkId(report, review);
+  const notification = await notifyModeratorReportDecision(moderatorVkId, report, status, xp, reason);
+  const now = new Date().toISOString();
+  const p = reportPayloadFromRow(report);
+  const reviewRow = {
+    report_id: String(reportId),
+    site_user_id: review?.site_user_id || p.userId || null,
+    email: review?.email || report.email || null,
+    vk_user_id: moderatorVkId || null,
+    requested_status: review?.requested_status || p.quality || null,
+    final_status: status,
+    xp,
+    verdict,
+    reason_code: reasonCode || null,
+    reason_text: reason || null,
+    actor_vk_user_id: options.actorVkUserId ? String(options.actorVkUserId) : null,
+    actor_site_user_id: options.actorSiteUserId ? String(options.actorSiteUserId) : null,
+    source: options.source || 'vk_callback',
+    staff_peer_id: review?.staff_peer_id || (options.peerId ? String(options.peerId) : null),
+    staff_conversation_message_id: review?.staff_conversation_message_id || options.conversationMessageId || null,
+    staff_message_text: review?.staff_message_text || null,
+    staff_attachments: review?.staff_attachments || null,
+    notification_status: notification.status,
+    notification_error: notification.error || null,
+    reviewed_at: now,
+    updated_at: now,
+  };
+  const { error: reviewError } = await getSupabase()
+    .from('moderator_report_reviews')
+    .upsert(reviewRow, { onConflict: 'report_id' });
+  if (reviewError) console.warn('report review audit failed:', reviewError.message || reviewError);
+
+  return { ok: true, report: { ...report, status, xp }, review: { ...(review || {}), ...reviewRow }, status, xp, reason, notification };
+}
+
+function reportDecisionCardText(report, result) {
+  const p = reportPayloadFromRow(report || {});
+  const approved = result.status !== 'Не засчитано';
+  return [
+    approved ? '✅ ОТЧЁТ ОДОБРЕН' : '❌ ОТЧЁТ НЕ ЗАСЧИТАН',
+    '━━━━━━━━━━━━━━━━',
+    `👤 Модератор: ${escapeLine(p.nick || p.email || '—')}`,
+    `📅 Дата: ${escapeLine(p.date || '—')}`,
+    `🧾 Работа: ${escapeLine(p.work || '—')}`,
+    `📌 Вердикт: ${result.status}`,
+    `⭐ XP: ${Number(result.xp || 0)}`,
+    result.reason ? `💭 Причина: ${escapeLine(result.reason)}` : '',
+    `#️⃣ ID: ${p.id || report?.id || '—'}`,
+    '',
+    result.notification?.status === 'sent'
+      ? '✉️ Модератор получил вердикт в ЛС.'
+      : result.notification?.status === 'not_linked'
+        ? '⚠️ VK модератора не привязан — уведомление в ЛС не отправлено.'
+        : '⚠️ Не удалось отправить вердикт в ЛС.',
+  ].filter(Boolean).join('\n');
+}
+
+async function showReportCallbackMenu(event, data) {
+  if (!(await canManageSiteModerators(event.userId))) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Доступно только КМ, ЗГМ и ГМ.');
+    return;
+  }
+  const { report, review } = await getReportWithReview(data.reportId);
+  if (!report) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Отчёт не найден.');
+    return;
+  }
+  if (review?.verdict && review.verdict !== 'pending') {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'По отчёту уже принято решение.');
+    return;
+  }
+  const view = ['approve', 'reject'].includes(data.view) ? data.view : 'main';
+  const hint = view === 'approve'
+    ? '\n\n👇 Выберите итоговый тип отчёта.'
+    : view === 'reject'
+      ? '\n\n👇 Выберите причину отказа.'
+      : '';
+  const text = `${review?.staff_message_text || formatReportRow(report)}${hint}`;
+  await editMessage(event.peerId, event.conversationMessageId, text, {
+    keyboard: reportReviewKeyboard(data.reportId, view),
+    attachment: review?.staff_attachments || '',
+  });
+  await answerMessageEvent(event.eventId, event.userId, event.peerId, view === 'main' ? 'Главное меню' : 'Меню открыто');
+}
+
+async function handleMessageEvent(payload) {
+  const object = payload?.object || {};
+  const event = {
+    eventId: object.event_id || '',
+    userId: String(object.user_id || ''),
+    peerId: String(object.peer_id || ''),
+    conversationMessageId: Number(object.conversation_message_id || 0),
+  };
+  const data = typeof object.event_data === 'string'
+    ? (parseJsonMaybe(object.event_data) || {})
+    : (object.event_data || {});
+  if (!event.eventId || !event.userId || !event.peerId) return;
+
+  try {
+    if (data.action === 'report_menu') {
+      await showReportCallbackMenu(event, data);
+      return;
+    }
+    if (data.action === 'report_decide' || data.action === 'report_reject') {
+      if (!(await canManageSiteModerators(event.userId))) {
+        await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Доступно только КМ, ЗГМ и ГМ.');
+        return;
+      }
+      const status = data.action === 'report_reject' ? 'Не засчитано' : cleanText(data.status);
+      const result = await decideReport(data.reportId, {
+        status,
+        reasonCode: data.reason || '',
+        actorVkUserId: event.userId,
+        source: 'vk_callback',
+        peerId: event.peerId,
+        conversationMessageId: event.conversationMessageId,
+      });
+      if (!result.ok && result.already) {
+        await answerMessageEvent(event.eventId, event.userId, event.peerId, 'По отчёту уже принято решение.');
+        return;
+      }
+      await editMessage(event.peerId, event.conversationMessageId, reportDecisionCardText(result.report, result), {
+        keyboard: { inline: true, buttons: [] },
+        attachment: result.review?.staff_attachments || '',
+      });
+      await answerMessageEvent(event.eventId, event.userId, event.peerId, result.status === 'Не засчитано' ? 'Отчёт отклонён' : `Одобрено: ${result.status}`);
+      return;
+    }
+    if (data.action === 'promotion_decide') {
+      await handlePromotionDecisionEvent(event, data);
+      return;
+    }
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Кнопка устарела.');
+  } catch (error) {
+    console.error('message_event failed:', error);
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, userFacingError(error, 'Не удалось выполнить действие.')).catch(() => null);
+  }
 }
 
 async function changeUserXp(peerId, vkUserId, targetVkId, amount, reason = '') {
@@ -4802,6 +5640,25 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
 
   if (/^\/(?:отвязать|unlink|unbind)$/i.test(raw)) {
     await unlinkVkCommand(peerId, vkUserId);
+    return true;
+  }
+
+  if (/^\/(?:состав|staffsheet|таблица)\s+(?:синхронизировать|синхронизация|sync|импорт)$/i.test(raw)) {
+    if (!isOwner(vkUserId)) {
+      await sendMessage(peerId, ownerOnlyText());
+      return true;
+    }
+    await syncStaffRoster({ peerId });
+    return true;
+  }
+
+  if (/^\/(?:повышения|promotion|карьера)\s+(?:проверить|check|скан)$/i.test(raw)) {
+    if (!(await canManageSiteModerators(vkUserId))) {
+      await sendMessage(peerId, '⛔ Проверка повышений доступна КМ, ЗГМ и ГМ.');
+      return true;
+    }
+    const result = await checkPromotionEligibility({ peerId });
+    await sendMessage(peerId, `✅ Проверка завершена. Новых уведомлений о повышении: ${result.created || 0}.`);
     return true;
   }
 
@@ -5518,6 +6375,21 @@ async function linkVkByCodeCommand(peerId, vkUserId, codeInput) {
     used_at: new Date().toISOString(),
   }).eq('code', code);
 
+  const moderator = await isModerator(data.site_user_id).catch(() => false);
+  if (moderator) {
+    await ensureJuniorCareer(data.site_user_id, {
+      email: data.email,
+      nickname: data.nickname || '',
+      vkUserId,
+      source: 'vk_link',
+    }).catch(error => console.warn('career after VK link failed:', error.message || error));
+    await getSupabase().from('moderator_careers').update({
+      vk_user_id: String(vkUserId),
+      email: data.email,
+      nickname: data.nickname || null,
+    }).eq('site_user_id', String(data.site_user_id));
+  }
+
   await sendMessage(peerId, [
     '✅ VK привязан к сайту',
     `🆔 VK ID: ${vkUserId}`,
@@ -5538,6 +6410,8 @@ async function unlinkVkCommand(peerId, vkUserId) {
     await sendMessage(peerId, `❌ Не удалось отвязать VK: ${escapeLine(error.message)}`);
     return;
   }
+
+  await getSupabase().from('moderator_careers').update({ vk_user_id: null }).eq('vk_user_id', String(vkUserId));
 
   await sendMessage(peerId, Number(count || 0)
     ? '✅ VK отвязан от аккаунта сайта.'
@@ -5719,6 +6593,8 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /состав добавить — открыть мини-форму',
       '• /состав добавить Nick_Name | Должность | Имя | МСК | VK | ФА | 0/2 | 0/3 | Discord ID | Discord Tag | TG',
       '• /состав фикс 20 — починить гиперссылки/формулы в строке 20',
+      '• /состав синхронизировать — импортировать ГМ/ЗГМ/КМ/СМ/М/ММ на сайт',
+      '• /повышения проверить — проверить условия и отправить карточки в STAFF',
       '',
       'Бот сам ставит гиперссылки:',
       '• VK → “VK ↗”',
@@ -5876,15 +6752,25 @@ async function handleMessageNew(payload) {
 module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     const task = reqQuery(req, 'task') || reqQuery(req, 'cron');
-    if (['expire', 'expire_moderation', 'punishments'].includes(task)) {
+    if (['expire', 'expire_moderation', 'punishments', 'daily', 'promotions', 'roster_sync'].includes(task)) {
       const secret = env('CRON_SECRET');
-      if (secret && reqQuery(req, 'secret') !== secret) {
+      const authorization = cleanText(req.headers?.authorization || '').replace(/^Bearer\s+/i, '');
+      if (secret && reqQuery(req, 'secret') !== secret && authorization !== secret) {
         res.status(403).json({ ok: false, error: 'bad secret' });
         return;
       }
       try {
-        const expired = await expireModerationActions();
-        res.status(200).json({ ok: true, service: 'cherepovets-vk-bot-v26-expire-task', expired });
+        const result = { ok: true, service: BUILD_VERSION };
+        if (['expire', 'expire_moderation', 'punishments', 'daily'].includes(task)) {
+          result.expired = await expireModerationActions();
+        }
+        if (['roster_sync', 'daily'].includes(task)) {
+          result.roster = await syncStaffRoster();
+        }
+        if (['promotions', 'daily'].includes(task)) {
+          result.promotions = await checkPromotionEligibility();
+        }
+        res.status(200).json(result);
       } catch (error) {
         res.status(500).json({ ok: false, error: error.message || String(error) });
       }
@@ -5923,8 +6809,18 @@ module.exports = async function handler(req, res) {
 
   try {
     if (payload.type === 'message_new') await handleMessageNew(payload);
+    if (payload.type === 'message_event') await handleMessageEvent(payload);
   } catch (error) {
     console.error('VK callback handler error:', error);
+
+    if (payload.type === 'message_event') {
+      const object = payload.object || {};
+      try {
+        await answerMessageEvent(object.event_id, object.user_id, object.peer_id, userFacingError(error));
+      } catch (_) {}
+      res.status(200).send('ok');
+      return;
+    }
 
     const message = getMessage(payload);
     if (message && message.peer_id) {

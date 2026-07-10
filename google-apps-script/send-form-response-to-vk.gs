@@ -651,6 +651,142 @@ function debugInfo_(sheet) {
   };
 }
 
+/* === CH89 V48: bridge to the existing "Discord состав" sheet ===
+ * This block intentionally extends the old Apps Script instead of replacing it.
+ * Existing form, verdict and staff-fill modes remain unchanged.
+ */
+function staffRankCode_(value) {
+  const raw = clean_(value).toUpperCase().replace(/\s+/g, '');
+  const aliases = {
+    'ММ': 'ММ',
+    'МЛАДШИЙМОДЕРАТОР': 'ММ',
+    'М': 'М',
+    'МОДЕРАТОР': 'М',
+    'СМ': 'СМ',
+    'СТАРШИЙМОДЕРАТОР': 'СМ',
+    'КМ': 'КМ',
+    'КУРАТОРМОДЕРАЦИИ': 'КМ',
+    'ЗГМ': 'ЗГМ',
+    'ЗАМЕСТИТЕЛЬГЛАВНОГОМОДЕРАТОРА': 'ЗГМ',
+    'ГМ': 'ГМ',
+    'ГЛАВНЫЙМОДЕРАТОР': 'ГМ',
+  };
+  return aliases[raw] || '';
+}
+
+function staffDateIso_(value, displayValue) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone() || 'Europe/Moscow', 'yyyy-MM-dd');
+  }
+  const display = clean_(displayValue || value);
+  const ru = display.match(/^(\d{1,2})\.(\d{1,2})\.(20\d{2})$/);
+  if (ru) return `${ru[3]}-${String(ru[2]).padStart(2, '0')}-${String(ru[1]).padStart(2, '0')}`;
+  const parsed = new Date(display);
+  return isNaN(parsed.getTime()) ? '' : Utilities.formatDate(parsed, Session.getScriptTimeZone() || 'Europe/Moscow', 'yyyy-MM-dd');
+}
+
+function getStaffRoster_() {
+  const sheet = getStaffSheet_();
+  const lastRow = Math.max(sheet.getLastRow(), 1);
+  if (lastRow < 2) return { ok: true, sheetName: sheet.getName(), rows: [] };
+
+  const count = lastRow - 1;
+  const range = sheet.getRange(2, 1, count, 17);
+  const values = range.getValues();
+  const display = range.getDisplayValues();
+  const rich = range.getRichTextValues();
+  const rows = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const nickname = clean_(display[i][0]);
+    const position = staffRankCode_(display[i][1]);
+    if (!nickname || /^вакант/i.test(nickname) || !position) continue;
+
+    const vkRich = rich[i][4];
+    let vkUrl = '';
+    if (vkRich) {
+      vkUrl = clean_(vkRich.getLinkUrl());
+      if (!vkUrl) {
+        const runs = vkRich.getRuns();
+        for (const run of runs) {
+          if (run.getLinkUrl()) { vkUrl = clean_(run.getLinkUrl()); break; }
+        }
+      }
+    }
+    if (!vkUrl) {
+      const cell = sheet.getRange(i + 2, 5);
+      vkUrl = normalizeExistingUrl_(cell.getFormula() || display[i][4], 'vk');
+    }
+
+    rows.push({
+      rowNumber: i + 2,
+      nickname,
+      position,
+      name: clean_(display[i][2]),
+      timezone: clean_(display[i][3]),
+      vkUrl,
+      warnings: clean_(display[i][6]),
+      reprimands: clean_(display[i][7]),
+      discordId: clean_(display[i][8]),
+      discordTag: clean_(display[i][9]),
+      placementDate: staffDateIso_(values[i][11], display[i][11]),
+      daysOnPost: Number(values[i][12] || display[i][12] || 0) || 0,
+      promotionDate: staffDateIso_(values[i][13], display[i][13]),
+      daysSincePromotion: Number(values[i][14] || display[i][14] || 0) || 0,
+      age: clean_(display[i][16]),
+    });
+  }
+
+  return {
+    ok: true,
+    service: 'ch89-staff-roster-v48',
+    sheetName: sheet.getName(),
+    spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    count: rows.length,
+    rows,
+  };
+}
+
+function promoteStaffRow_(rowNumber, targetPosition, expectedPosition, expectedNickname) {
+  const sheet = getStaffSheet_();
+  const n = Number(rowNumber);
+  if (!Number.isFinite(n) || n < 2 || n > sheet.getLastRow()) {
+    return { ok: false, error: 'bad staff rowNumber' };
+  }
+
+  const current = staffRankCode_(sheet.getRange(n, 2).getDisplayValue());
+  const currentNickname = clean_(sheet.getRange(n, 1).getDisplayValue());
+  const target = staffRankCode_(targetPosition);
+  const expected = staffRankCode_(expectedPosition);
+  const allowed = { 'ММ': 'М', 'М': 'СМ' };
+
+  if (!current || !target || allowed[current] !== target) {
+    return { ok: false, error: `invalid promotion ${current || '?'} -> ${target || '?'}` };
+  }
+  if (expected && current !== expected) {
+    return { ok: false, error: `position changed: expected ${expected}, actual ${current}` };
+  }
+  if (clean_(expectedNickname) && low_(currentNickname) !== low_(expectedNickname)) {
+    return { ok: false, error: `staff row changed: expected ${clean_(expectedNickname)}, actual ${currentNickname}` };
+  }
+
+  sheet.getRange(n, 2).setValue(target);
+  sheet.getRange(n, 14).setValue(new Date()).setNumberFormat('dd.MM.yyyy');
+  setLocalizedFormula_(sheet.getRange(n, 15), daysFormula_(`N${n}`));
+
+  return {
+    ok: true,
+    service: 'ch89-staff-promote-v48',
+    sheetName: sheet.getName(),
+    rowNumber: n,
+    nickname: currentNickname,
+    previousPosition: current,
+    position: target,
+    promotionDate: Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Europe/Moscow', 'yyyy-MM-dd'),
+  };
+}
+/* === /CH89 V48 === */
+
 function doGet(e) {
   const expected = clean_(CH89_PULL_SECRET);
   const received = clean_(getParam_(e, 'secret', ''));
@@ -662,6 +798,19 @@ function doGet(e) {
   const limit = Math.max(1, Math.min(Number(getParam_(e, 'limit', CH89_DEFAULT_LIMIT)) || CH89_DEFAULT_LIMIT, 25));
 
   const rawRow = getParam_(e, 'row', '');
+  if (mode === 'staff_roster' || mode === 'staff_sync' || mode === 'career_roster') {
+    return json_(getStaffRoster_());
+  }
+
+  if (mode === 'staff_promote' || mode === 'career_promote') {
+    return json_(promoteStaffRow_(
+      getParam_(e, 'rowNumber', getParam_(e, 'row', '')),
+      getParam_(e, 'position', getParam_(e, 'targetPosition', '')),
+      getParam_(e, 'expectedPosition', ''),
+      getParam_(e, 'expectedNickname', '')
+    ));
+  }
+
   if (mode === 'staff_debug' || mode === 'staff_test') {
     const staffSheet = getStaffSheet_();
     return json_({
@@ -741,6 +890,19 @@ function doPost(e) {
   }
 
   const mode = clean_(payload.mode || getParam_(e, 'mode', ''));
+  if (mode === 'staff_roster' || mode === 'staff_sync' || mode === 'career_roster') {
+    return json_(getStaffRoster_());
+  }
+
+  if (mode === 'staff_promote' || mode === 'career_promote') {
+    return json_(promoteStaffRow_(
+      payload.rowNumber || payload.row,
+      payload.position || payload.targetPosition,
+      payload.expectedPosition || '',
+      payload.expectedNickname || ''
+    ));
+  }
+
   if (mode === 'staff_fill') {
     const row = payload.row || {};
     if (!clean_(row.nickName)) return json_({ ok: false, error: 'missing Nick_Name' });

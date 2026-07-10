@@ -2,10 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/vk.js": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/table-webhook.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/vk?task=daily",
+      "schedule": "0 7 * * *"
+    }
+  ]
 }

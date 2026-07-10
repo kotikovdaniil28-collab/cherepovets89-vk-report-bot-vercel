@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v48-review-career-dashboard';
+const BUILD_VERSION = 'v49-silent-callback-ui';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -775,9 +775,9 @@ async function sendLongMessage(peerId, text, options = {}) {
 function vkTextButton(label, command, color = 'secondary') {
   return {
     action: {
-      type: 'text',
+      type: 'callback',
       label,
-      payload: JSON.stringify({ command }),
+      payload: JSON.stringify({ action: 'run_command', command }),
     },
     color,
   };
@@ -858,22 +858,22 @@ function helpKeyboard(page = 'main') {
   const rows = normalized === 'main'
     ? [
         [
-          vkTextButton('Отчёты', '/help отчеты', 'primary'),
-          vkTextButton('Модерация', '/help наказания', 'primary'),
+          vkTextButton('📋 Отчёты', '/help отчеты', 'primary'),
+          vkTextButton('🛡 Модерация', '/help наказания', 'primary'),
         ],
         [
-          vkTextButton('Заявки', '/help заявки'),
-          vkTextButton('Состав', '/help состав'),
+          vkTextButton('📨 Заявки', '/help заявки'),
+          vkTextButton('👥 Состав', '/help состав'),
         ],
         [
-          vkTextButton('Панель', '/панель', 'positive'),
-          vkTextButton('AI', '/help ai'),
+          vkTextButton('⚙ Панель', '/панель', 'positive'),
+          vkTextButton('✦ AI', '/help ai'),
         ],
       ]
     : [
         [
-          vkTextButton('Главное меню', '/help', 'primary'),
-          vkTextButton('Панель', '/панель', 'positive'),
+          vkTextButton('‹ Главное меню', '/help', 'primary'),
+          vkTextButton('⚙ Панель', '/панель', 'positive'),
         ],
       ];
 
@@ -886,11 +886,11 @@ function helpKeyboard(page = 'main') {
 
 function moderationActionKeyboard(actionType, targetVkId, actionId) {
   const rows = [];
-  if (actionType === 'mute') rows.push([vkTextButton('Анмут', `/анмут @id${targetVkId}`, 'positive')]);
-  if (actionType === 'ban') rows.push([vkTextButton('Анбан', `/анбан @id${targetVkId}`, 'positive')]);
+  if (actionType === 'mute') rows.push([vkTextButton('🔊 Снять мут', `/анмут @id${targetVkId}`, 'positive')]);
+  if (actionType === 'ban') rows.push([vkTextButton('🔓 Снять бан', `/анбан @id${targetVkId}`, 'positive')]);
   rows.push([
-    vkTextButton('Наказания', `/наказания @id${targetVkId}`),
-    vkTextButton('Снять это', `/снятьнаказание ${actionId}`, 'negative'),
+    vkTextButton('📋 История', `/наказания @id${targetVkId}`),
+    vkTextButton('✕ Отменить', `/снятьнаказание ${actionId}`, 'negative'),
   ]);
   return {
     one_time: false,
@@ -907,15 +907,15 @@ function applicationVerdictKeyboard(rowNumber) {
     inline: true,
     buttons: [
       [
-        vkTextButton('Принять', `/заявка принять ${row}`, 'positive'),
-        vkTextButton('Собес', `/заявка собес ${row}`, 'primary'),
+        vkTextButton('✓ Принять', `/заявка принять ${row}`, 'positive'),
+        vkTextButton('💬 Собеседование', `/заявка собес ${row}`, 'primary'),
       ],
       [
-        vkTextButton('Отказать', `/заявка отказ ${row}`, 'negative'),
-        vkTextButton('Обновить', '/заявки 5'),
+        vkTextButton('✕ Отказать', `/заявка отказ ${row}`, 'negative'),
+        vkTextButton('↻ Обновить', '/заявки 5'),
       ],
       [
-        vkTextButton('Вернуть', `/заявка вернуть ${row}`),
+        vkTextButton('↶ Вернуть на проверку', `/заявка вернуть ${row}`),
       ],
     ],
   };
@@ -4920,6 +4920,44 @@ async function showReportCallbackMenu(event, data) {
   await answerMessageEvent(event.eventId, event.userId, event.peerId, view === 'main' ? 'Главное меню' : 'Меню открыто');
 }
 
+async function handleRunCommandEvent(event, data) {
+  const command = cleanText(data.command);
+  if (!command) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Кнопка устарела.');
+    return;
+  }
+
+  const help = command.match(HELP_COMMAND_RE);
+  if (help) {
+    const page = help[1] || 'main';
+    await editMessage(event.peerId, event.conversationMessageId, await helpText(event.userId, event.peerId, page), {
+      keyboard: helpKeyboard(page),
+    });
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, page === 'main' ? 'Главное меню' : 'Раздел открыт');
+    return;
+  }
+
+  if (/^\/(?:панель|panel|admin|админ)$/i.test(command)) {
+    await panelCommand(event.peerId, event.userId);
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Панель обновлена');
+    return;
+  }
+
+  if (await handleGroupCommand(event.peerId, event.userId, command)) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Готово');
+    return;
+  }
+  if (await rulesCommand(event.peerId, event.userId, command)) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Открыто');
+    return;
+  }
+  if (await handleModCommand(event.peerId, event.userId, command, null)) {
+    await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Действие выполнено');
+    return;
+  }
+  await answerMessageEvent(event.eventId, event.userId, event.peerId, 'Команда этой кнопки больше не поддерживается.');
+}
+
 async function handleMessageEvent(payload) {
   const object = payload?.object || {};
   const event = {
@@ -4934,6 +4972,10 @@ async function handleMessageEvent(payload) {
   if (!event.eventId || !event.userId || !event.peerId) return;
 
   try {
+    if (data.action === 'run_command') {
+      await handleRunCommandEvent(event, data);
+      return;
+    }
     if (data.action === 'report_menu') {
       await showReportCallbackMenu(event, data);
       return;
@@ -6159,25 +6201,20 @@ async function panelCommand(peerId, vkUserId) {
   const appsCount = await pendingApplicationsCount();
 
   await sendMessage(peerId, [
-    '🛡 CHEREPOVETS BOT',
+    '✦ CHEREPOVETS · STAFF CONTROL',
     '━━━━━━━━━━━━━━━━',
-    `👤 Ваша роль: ${staffRoleTitle(role)}`,
-    `💬 Беседа: ${groupType ? groupTypeTitle(groupType) : 'тип не задан'}`,
+    `◉ ${staffRoleTitle(role)}  ·  ${groupType ? groupTypeTitle(groupType) : 'тип беседы не задан'}`,
     '',
-    '📌 Состояние',
-    `• Заявки без вердикта: ${appsCount == null ? 'не настроено' : appsCount}`,
-    `• Отчёты на проверке: ${countText(pendingReports)}`,
-    `• Активные баны: ${countText(activeBans)}`,
-    `• Активные муты: ${countText(activeMutes)}`,
-    `• Staff-ролей: ${countText(staffCount)}`,
-    `• Привязок VK: ${countText(linkedCount)}`,
-    `• Бесед бота: ${countText(groupsCount)}`,
-    `• Ошибок таблицы: ${countText(googleErrors)}`,
+    'ОЧЕРЕДЬ',
+    `📨 Заявки     ${appsCount == null ? '—' : appsCount}`,
+    `📋 Отчёты     ${countText(pendingReports)}`,
     '',
-    'Быстрые команды:',
-    '• /help — разделы команд',
-    '• /заявки 10 — заявки',
-    '• /отчёты — отчёты',
+    'КОНТРОЛЬ',
+    `🔇 Муты ${countText(activeMutes)}  ·  ⛔ Баны ${countText(activeBans)}`,
+    `👥 Staff ${countText(staffCount)}  ·  🔗 VK ${countText(linkedCount)}`,
+    `💬 Беседы ${countText(groupsCount)}  ·  ⚠ Ошибки ${countText(googleErrors)}`,
+    '',
+    'Используйте кнопки — они не отправляют сообщения-команды.',
   ].join('\n'), { keyboard: helpKeyboard('main') });
 }
 
@@ -6440,10 +6477,10 @@ async function helpText(vkUserId, peerId, pageInput = '') {
   const configured = reportsPeerId();
 
   const header = [
-    '🤖 CHEREPOVETS BOT',
+    '✦ CHEREPOVETS',
+    'STAFF CONTROL CENTER',
     '━━━━━━━━━━━━━━━━',
-    `🏷 Беседа: ${groupType ? groupTypeTitle(groupType) : 'обычная беседа'}`,
-    `🛡 Ваша роль: ${staffRoleTitle(role)}`,
+    `◉ ${groupType ? groupTypeTitle(groupType) : 'обычная беседа'}  ·  ${staffRoleTitle(role)}`,
   ];
   if (configured && String(peerId) === String(configured)) header.push('🧾 Режим отчётов активен');
 
@@ -6451,23 +6488,10 @@ async function helpText(vkUserId, peerId, pageInput = '') {
     main: [
       ...header,
       '',
-      '📚 Разделы help',
-      '• /help общие — база, ID, правила',
-      '• /help отчеты — сдача и проверка отчётов',
-      '• /help км — команды модератора/КМ',
-      '• /help наказания — мут, бан, преды',
-      '• /help згм — роли и staff-права',
-      '• /help гм — команды владельца',
-      '• /help заявки — анкеты кандидатов',
-      '• /help состав — автозаполнение Discord состава',
-      '• /help ai — AI-помощник',
-      '• /rules — правила текущей беседы',
+      'Выберите раздел кнопками ниже.',
+      'Меню обновляется в этой карточке — без сообщений от нажатий.',
       '',
-      'Быстрый старт:',
-      '• /ид — узнать свой VK ID',
-      '• /панель — сводка staff-бота',
-      '• /отчет или /report — сдать отчёт',
-      '• /мут @id123 90м причина — выдать мут',
+      'Быстрый ввод: /отчет · /панель · /rules · /ид',
     ],
     base: [
       ...header,

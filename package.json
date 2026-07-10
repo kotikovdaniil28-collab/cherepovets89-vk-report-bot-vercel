@@ -1,6 +1,6 @@
 {
   "name": "cherepovets89-vk-report-bot-vercel-xai",
-  "version": "48.0.0",
+  "version": "49.0.0",
   "private": true,
   "description": "CHEREPOVETS VK bot with silent report review callbacks, moderator career ladder, Google Sheets roster sync and staff workflows.",
   "scripts": {

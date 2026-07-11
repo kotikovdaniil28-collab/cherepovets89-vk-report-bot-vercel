@@ -18,7 +18,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v50-vk-payload-callback-fix';
+const BUILD_VERSION = 'v51-black-russia-cards';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -99,7 +99,7 @@ const DISCORD_RULES = {
   '2.8': ['Общие правила', 'Прямое или косвенное обсуждение продажи, передачи или обмена чего-либо за реальные деньги.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.9': ['Общие правила', 'Использование уязвимостей правил, багов систем и плагинов, дающих преимущества. Очевидная вина не снимается из-за “недостаточно расписанного” пункта.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка / Обнуление'],
   '2.10': ['Общие правила', 'Вымогательство и попрошайничество в Discord-серверах проекта.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
-  '2.11': ['Общие правила', 'Деструктивные действия против проекта: неконструктивная критика, призывы покинуть проект, помеха развитию и другой негатив.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
+  '2.11': ['Общие правила', 'Деструктивные действия против проекта: неконструктивная критика, призывы по��инуть проект, помеха развитию и другой негатив.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.12': ['Общие правила', 'Обход выданных или находящихся на рассмотрении наказаний.', 'Перманентная блокировка'],
   '2.13': ['Общие правила', 'Прямые или косвенные упоминания либо оскорбления родных пользователя.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.14': ['Общие правила', 'Распространение сторонних файлов в любом формате.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
@@ -333,7 +333,7 @@ function isOwner(vkUserId) {
 
 function ownerOnlyText() {
   return ownerVkId()
-    ? '⛔ Эта команда доступна только владельцу бота.'
+    ? '⛔ Эта команда досту��на только владельцу бота.'
     : '⛔ Владелец бота не совпадает с вашим VK ID.';
 }
 
@@ -647,6 +647,13 @@ function getMessage(payload) {
   return payload && payload.object && payload.object.message ? payload.object.message : null;
 }
 
+const VK_RETRYABLE_ERROR_CODES = new Set([1, 6, 9, 10]); // unknown, too many requests, flood, internal
+const VK_API_MAX_ATTEMPTS = 3;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function vkApi(method, params) {
   const token = requireEnv('VK_GROUP_TOKEN');
   const version = env('VK_API_VERSION', DEFAULT_VK_API_VERSION);
@@ -656,20 +663,38 @@ async function vkApi(method, params) {
     v: version,
   });
 
-  const response = await fetch(`https://api.vk.com/method/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body,
-  });
+  let lastError = null;
+  for (let attempt = 1; attempt <= VK_API_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(`https://api.vk.com/method/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body,
+      });
 
-  const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(`VK API HTTP ${response.status}`);
-  if (data && data.error) {
-    const code = data.error.error_code || 'unknown';
-    const message = data.error.error_msg || 'Unknown VK API error';
-    throw new Error(`VK API error ${code}: ${message}`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(`VK API HTTP ${response.status}`);
+      if (data && data.error) {
+        const code = Number(data.error.error_code) || 0;
+        const message = data.error.error_msg || 'Unknown VK API error';
+        const error = new Error(`VK API error ${code || 'unknown'}: ${message}`);
+        error.vkCode = code;
+        throw error;
+      }
+      return data ? data.response : null;
+    } catch (error) {
+      lastError = error;
+      const retryableVkCode = typeof error.vkCode === 'number' && VK_RETRYABLE_ERROR_CODES.has(error.vkCode);
+      const networkError = error.vkCode === undefined && !/VK API HTTP 4/.test(String(error.message || ''));
+      if (attempt < VK_API_MAX_ATTEMPTS && (retryableVkCode || networkError)) {
+        console.warn(`vkApi ${method} attempt ${attempt} failed, retrying:`, error.message || error);
+        await sleep(300 * attempt);
+        continue;
+      }
+      throw error;
+    }
   }
-  return data ? data.response : null;
+  throw lastError;
 }
 
 async function sendMessage(peerId, text, options = {}) {
@@ -2606,7 +2631,7 @@ async function syncStaffRoster(options = {}) {
     await sendLongMessage(options.peerId, [
       '🔄 СИНХРОНИЗАЦИЯ СОСТАВА',
       '━━━━━━━━━━━━━━━━',
-      `📄 Лист: ${escapeLine(summary.sheetName)}`,
+      `📄 Л��ст: ${escapeLine(summary.sheetName)}`,
       `✅ Обновлено на сайте: ${synced.length}`,
       `⚠️ Требуют внимания: ${skipped.length}`,
       '',
@@ -3358,7 +3383,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
       error: error.message || String(error),
     }));
     if (candidateResult.ok) {
-      candidateLine = `👥 Кандидат добавлен в группу кандидатов: @id${candidateResult.targetVkId}`;
+      candidateLine = `👥 Кандидат добавлен в гру��пу кандидатов: @id${candidateResult.targetVkId}`;
     } else if (candidateResult.status === 'group_auth_unavailable') {
       candidateLine = [
         '👥 Беседа кандидатов: автодобавление недоступно.',
@@ -3660,6 +3685,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
   const allowProfanity = boolEnv('AI_ALLOW_PROFANITY', true);
   return [
     'Ты Grok в VK-боте CHEREPOVETS: дерзкий, смешной, быстрый и не душный.',
+    'Контекст: это сообщество сервера Череповец в игре Black Russia (CRMP, GTA-подобная русская RP-игра). Ты знаешь сленг игры: РП, ДМ, ПГ, МГ, слив, вирт, фракция, госструктура, семья, бизвар.',
     'Пиши по-русски, живо, с реакциями как в чате. Обычно 1-4 коротких строки, если не просят подробно.',
     roastMode === 'roast'
       ? `Стиль: roast. Подкалывай, угарай, отвечай острее. ${allowProfanity ? 'Мат разрешён, если он смешной и уместный; не превращай каждое слово в мат ради мата.' : 'Мат не используй.'}`
@@ -3693,7 +3719,7 @@ async function askXaiText(mode, question, context = {}) {
   const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '18000')) || 18000);
 
   const memory = await loadAiMemory(context.vkUserId).catch(() => null);
-  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '8')) || 8).catch(() => []);
+  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '12')) || 12).catch(() => []);
   const ownerInstruction = await loadOwnerAiInstruction().catch(() => '');
   const system = buildAiSystemPrompt(mode, context, memory, history, ownerInstruction);
 
@@ -3739,7 +3765,7 @@ async function askXaiWebSearch(mode, question, context = {}) {
   const timeout = setTimeout(() => controller.abort(), Number(env('XAI_WEB_TIMEOUT_MS', '25000')) || 25000);
 
   const memory = await loadAiMemory(context.vkUserId).catch(() => null);
-  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '8')) || 8).catch(() => []);
+  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '12')) || 12).catch(() => []);
   const ownerInstruction = await loadOwnerAiInstruction().catch(() => '');
   const system = [
     buildAiSystemPrompt(mode, context, memory, history, ownerInstruction),
@@ -3796,7 +3822,7 @@ async function askXaiVision(question, imageUrls, context = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '18000')) || 18000);
   const memory = await loadAiMemory(context.vkUserId).catch(() => null);
-  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '8')) || 8).catch(() => []);
+  const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '12')) || 12).catch(() => []);
   const ownerInstruction = await loadOwnerAiInstruction().catch(() => '');
 
   try {
@@ -3882,6 +3908,78 @@ async function uploadVkMessagePhoto(peerId, buffer, contentType = 'image/png') {
   return `photo${photo.owner_id}_${photo.id}${photo.access_key ? `_${photo.access_key}` : ''}`;
 }
 
+// ===== BLACK RUSSIA CARDS =====
+// Фирменные картинки-карточки в стиле Black Russia, прикрепляемые к ответам бота.
+// Файлы лежат в public/cards/ и раздаются с деплоя. После первой загрузки в VK
+// attachment кешируется в памяти и в Supabase (vk_card_cache), чтобы не грузить повторно.
+const CARD_FILES = Object.freeze({
+  main: 'help.png',
+  base: 'help.png',
+  reports: 'reports.png',
+  km: 'km.png',
+  punish: 'punish.png',
+  zgm: 'gm.png',
+  gm: 'gm.png',
+  apps: 'apps.png',
+  staffsheet: 'staff.png',
+  ai: 'ai.png',
+  welcome: 'welcome.png',
+  panel: 'panel.png',
+});
+const cardAttachmentMemory = new Map();
+
+function cardsEnabled() {
+  return boolEnv('CARDS_ENABLED', true);
+}
+
+function cardsBaseUrl() {
+  const explicit = cleanText(env('CARDS_BASE_URL', ''));
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const host = cleanText(env('VERCEL_PROJECT_PRODUCTION_URL', '') || env('VERCEL_URL', ''));
+  if (!host) return '';
+  return `https://${host.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`;
+}
+
+async function getCardAttachment(cardKey, peerId) {
+  try {
+    if (!cardsEnabled()) return '';
+    const file = CARD_FILES[cardKey];
+    if (!file) return '';
+    if (cardAttachmentMemory.has(file)) return cardAttachmentMemory.get(file);
+
+    try {
+      const { data } = await getSupabase()
+        .from('vk_card_cache')
+        .select('attachment')
+        .eq('card_key', file)
+        .maybeSingle();
+      if (data?.attachment) {
+        cardAttachmentMemory.set(file, data.attachment);
+        return data.attachment;
+      }
+    } catch (_) {}
+
+    const base = cardsBaseUrl();
+    if (!base) return '';
+    const response = await fetch(`${base}/cards/${file}`);
+    if (!response.ok) return '';
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const attachment = await uploadVkMessagePhoto(peerId, buffer, 'image/png');
+    if (!attachment) return '';
+
+    cardAttachmentMemory.set(file, attachment);
+    try {
+      await getSupabase()
+        .from('vk_card_cache')
+        .upsert({ card_key: file, attachment, updated_at: new Date().toISOString() });
+    } catch (_) {}
+    return attachment;
+  } catch (error) {
+    console.warn('card attachment failed:', error && (error.message || error));
+    return '';
+  }
+}
+
 function imageGenerationError(error) {
   const raw = String(error && (error.message || error) || '');
   if (/quota|billing|credits|payment|insufficient/i.test(raw)) {
@@ -3945,8 +4043,13 @@ async function generateXaiImage(prompt) {
   };
 }
 
+const AI_BR_IMAGE_RE = /^\/(?:бр|br|блэкраша|блекраша|blackrussia)\s+([\s\S]+)$/i;
+const BR_IMAGE_STYLE = 'Арт в стиле игры Black Russia (CRMP): GTA-подобный цифровой игровой арт, ночной российский город, тюнингованные машины (Lada Priora, BMW), неоновые вывески, мокрый асфальт с отражениями, кинематографичное драматичное освещение, тёмная атмосфера с золотыми и оранжевыми акцентами, высокая детализация.';
+
 async function handleImageCommand(peerId, vkUserId, text) {
-  const match = cleanText(text).match(AI_IMAGE_COMMAND_RE);
+  const raw = cleanText(text);
+  const brMatch = raw.match(AI_BR_IMAGE_RE);
+  const match = brMatch || raw.match(AI_IMAGE_COMMAND_RE);
   if (!match) return false;
   try {
     if (!(await canUseAi(vkUserId, peerId))) {
@@ -3958,8 +4061,9 @@ async function handleImageCommand(peerId, vkUserId, text) {
       return true;
     }
 
-    const prompt = cleanText(match[1]).slice(0, 900);
-    const typing = await sendMessage(peerId, '🎨 Генерирую картинку...');
+    const userPrompt = cleanText(match[1]).slice(0, 700);
+    const prompt = brMatch ? `${BR_IMAGE_STYLE}\n\nСцена: ${userPrompt}` : userPrompt;
+    const typing = await sendMessage(peerId, brMatch ? '🎨 Рисую в стиле Black Russia...' : '🎨 Генерирую картинку...');
     let imageUrl = '';
     let attachment = '';
     const image = await generateXaiImage(prompt);
@@ -3971,7 +4075,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
     if (typing && cleanupEnabled()) await deleteMessagesBestEffort(peerId, [typing]);
     await sendMessage(peerId, [
       '🎨 Готово',
-      `Запрос: ${escapeLine(prompt)}`,
+      `Запрос: ${escapeLine(userPrompt)}${brMatch ? ' · стиль Black Russia' : ''}`,
       !attachment && imageUrl ? `Ссылка: ${imageUrl}` : '',
       !attachment && !imageUrl ? 'VK не принял вложение, а bucket для ссылок не настроен.' : '',
     ].filter(Boolean).join('\n'), attachment ? { attachment } : {});
@@ -4042,7 +4146,7 @@ async function handleOwnerAiInstructionCommand(peerId, vkUserId, text) {
 
   const saved = await saveOwnerAiInstruction(body);
   await sendMessage(peerId, [
-    '✅ Инструкция AI сохранена',
+    '✅ Инструкция AI сохранен��',
     '',
     escapeLine(saved),
   ].join('\n'));
@@ -4590,7 +4694,8 @@ async function welcomeIfNeeded(peerId, message) {
     '',
     'Команды: /help, /rules, /ид',
   ].join('\n');
-  await sendMessage(peerId, hello, { disableMentions: false });
+  const attachment = await getCardAttachment('welcome', peerId);
+  await sendMessage(peerId, hello, { disableMentions: false, ...(attachment ? { attachment } : {}) });
   return true;
 }
 
@@ -4930,8 +5035,10 @@ async function handleRunCommandEvent(event, data) {
   const help = command.match(HELP_COMMAND_RE);
   if (help) {
     const page = help[1] || 'main';
+    const attachment = await getCardAttachment(normalizeHelpPage(page), event.peerId);
     await editMessage(event.peerId, event.conversationMessageId, await helpText(event.userId, event.peerId, page), {
       keyboard: helpKeyboard(page),
+      ...(attachment ? { attachment } : {}),
     });
     await answerMessageEvent(event.eventId, event.userId, event.peerId, page === 'main' ? 'Главное меню' : 'Раздел открыт');
     return;
@@ -5482,7 +5589,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
     mute: 'Мут',
     ban: 'Бан',
     private_room_block: 'Блок приватных комнат',
-    global_block: 'Глобальная блокировка',
+    global_block: 'Глобальная ��локировка',
     reset: 'Обнуление',
   }[actionType] || actionType;
 
@@ -5679,7 +5786,7 @@ async function sendModUsageOrNoAccess(peerId, vkUserId, action = 'mute') {
 }
 
 function isModerationActionCommandText(text) {
-  return /^\/(?:мут|мьют|mute|замутить|молчанка|бан|ban|забанить|кик|пред|warn|предупреждение|варн|устник|устное|oral|устпред|строгий|строгач|strict|строг|приват|private|глобал|global|обнулить|reset|размут|размьют|анмут|анмьют|unmute|unmut|разбан|анбан|unban|анблок|разблок|снятьнаказание|unpunish|снятькару)(?:\s|$)/i.test(cleanText(text));
+  return /^\/(?:мут|мьют|mute|замутить|молчанка|бан|ban|забанить|кик|пред|warn|предупреждение|варн|устник|��стное|oral|устпред|строгий|строгач|strict|строг|приват|private|глобал|global|обнулить|reset|размут|размьют|анмут|анмьют|unmute|unmut|разбан|анбан|unban|анблок|разблок|снятьнаказание|unpunish|снятькару)(?:\s|$)/i.test(cleanText(text));
 }
 
 async function handleModCommand(peerId, vkUserId, text, message = null) {
@@ -6195,6 +6302,71 @@ function countText(value) {
   return value == null ? 'недоступно' : String(value);
 }
 
+// ===== FUN COMMANDS =====
+function pickRandom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+async function randomChatMemberMention(peerId) {
+  try {
+    const members = await vkApi('messages.getConversationMembers', { peer_id: String(peerId) });
+    const profiles = Array.isArray(members?.profiles) ? members.profiles.filter(p => p && p.id > 0) : [];
+    if (!profiles.length) return '';
+    const p = pickRandom(profiles);
+    return `@id${p.id} (${escapeLine(`${p.first_name || ''} ${p.last_name || ''}`.trim() || 'участник')})`;
+  } catch (_) {
+    return '';
+  }
+}
+
+async function handleFunCommand(peerId, vkUserId, text) {
+  const raw = cleanText(text);
+
+  if (/^\/(?:монетка|coin|флип)$/i.test(raw)) {
+    await sendMessage(peerId, `🪙 ${pickRandom(['Орёл', 'Решка'])}!`);
+    return true;
+  }
+
+  const dice = raw.match(/^\/(?:кубик|dice)(?:\s+(\d{1,3}))?$/i);
+  if (dice) {
+    const sides = Math.min(Math.max(Number(dice[1]) || 6, 2), 120);
+    await sendMessage(peerId, `🎲 Выпало: ${1 + Math.floor(Math.random() * sides)} (из ${sides})`);
+    return true;
+  }
+
+  const chance = raw.match(/^\/(?:шанс|вероятность|chance|инфа)\s+([\s\S]{1,200})$/i);
+  if (chance) {
+    const percent = Math.floor(Math.random() * 101);
+    const mood = percent >= 80 ? 'почти гарантия' : percent >= 50 ? 'вполне реально' : percent >= 20 ? 'шансы так себе' : 'даже не надейся';
+    await sendMessage(peerId, `📊 Шанс, что «${escapeLine(chance[1])}» — ${percent}% (${mood}).`);
+    return true;
+  }
+
+  const choose = raw.match(/^\/(?:выбери|выбор|choose)\s+([\s\S]{1,300})$/i);
+  if (choose) {
+    const variants = choose[1].split(/\s+или\s+|,|;/i).map(v => cleanText(v)).filter(Boolean);
+    if (variants.length < 2) {
+      await sendMessage(peerId, '🤔 Дай хотя бы два варианта: /выбери приора или бумер');
+      return true;
+    }
+    await sendMessage(peerId, `🎯 Мой выбор: ${escapeLine(pickRandom(variants))}`);
+    return true;
+  }
+
+  const who = raw.match(/^\/(?:кто|who)\s+([\s\S]{1,200})$/i);
+  if (who) {
+    const mention = await randomChatMemberMention(peerId);
+    if (!mention) {
+      await sendMessage(peerId, '⚠️ Не вижу участников беседы. Боту нужны права администратора беседы.');
+      return true;
+    }
+    await sendMessage(peerId, `🔍 ${mention} — вот кто ${escapeLine(who[1])}`, { disableMentions: false });
+    return true;
+  }
+
+  return false;
+}
+
 async function panelCommand(peerId, vkUserId) {
   if (!(await canUseStaffCommands(vkUserId, peerId))) {
     await sendMessage(peerId, '⛔ /панель доступна staff-составу.');
@@ -6211,6 +6383,7 @@ async function panelCommand(peerId, vkUserId) {
   const groupsCount = await countRows('vk_group_bindings');
   const googleErrors = await countRows('vk_google_sheet_events', q => q.eq('status', 'error'));
   const appsCount = await pendingApplicationsCount();
+  const panelCard = await getCardAttachment('panel', peerId);
 
   await sendMessage(peerId, [
     '✦ CHEREPOVETS · STAFF CONTROL',
@@ -6227,7 +6400,7 @@ async function panelCommand(peerId, vkUserId) {
     `💬 Беседы ${countText(groupsCount)}  ·  ⚠ Ошибки ${countText(googleErrors)}`,
     '',
     'Используйте кнопки — они не отправляют сообщения-команды.',
-  ].join('\n'), { keyboard: helpKeyboard('main') });
+  ].join('\n'), { keyboard: helpKeyboard('main'), ...(panelCard ? { attachment: panelCard } : {}) });
 }
 
 async function healthCommand(peerId, vkUserId) {
@@ -6518,6 +6691,13 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /правило 2.1 — показать пункт правил',
       '• /правило флуд — поиск по правилам',
       '• /термин мут — объяснение термина',
+      '',
+      '🎲 Развлечения',
+      '• /монетка — орёл или решка',
+      '• /кубик [граней] — бросить кубик',
+      '• /шанс <вопрос> — вероятность в процентах',
+      '• /выбери а или б — бот выберет за вас',
+      '• /кто <вопрос> — случайный участник беседы',
     ],
     reports: [
       ...header,
@@ -6618,7 +6798,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /логзаявок 10 — журнал решений по заявкам',
       '• /gsheet, /гугл, /таблица — состояние таблицы',
       '',
-      'Открытая заявка: пусто, “На рассмотрении”, “Ожидает”, pending.',
+      'Открытая заявка: пусто, “На рассмотрении”, “О��идает”, pending.',
     ],
     staffsheet: [
       ...header,
@@ -6648,6 +6828,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /наказание <нарушение>',
       '• /шаблон <ответ>',
       '• /картинка <описание> — сгенерировать изображение через Grok Imagine',
+      '• /бр <сцена> — картинка в фирменном стиле Black Russia',
       '• /vision <вопрос> — разобрать фото через Grok Vision',
       '• /память — показать, что AI помнит о вас',
       '• /забыть — очистить память AI о вас',
@@ -6718,7 +6899,12 @@ async function handleMessageNew(payload) {
 
   const help = text.match(HELP_COMMAND_RE);
   if (help) {
-    await sendMessage(peerId, await helpText(vkUserId, peerId, help[1] || ''), { keyboard: helpKeyboard(help[1] || 'main') });
+    const page = normalizeHelpPage(help[1] || '');
+    const attachment = await getCardAttachment(page, peerId);
+    await sendMessage(peerId, await helpText(vkUserId, peerId, help[1] || ''), {
+      keyboard: helpKeyboard(help[1] || 'main'),
+      ...(attachment ? { attachment } : {}),
+    });
     return;
   }
 
@@ -6726,6 +6912,8 @@ async function handleMessageNew(payload) {
     await sendMessage(peerId, `🏓 pong · ${moscowDateTime()}`);
     return;
   }
+
+  if (await handleFunCommand(peerId, vkUserId, text)) return;
 
   if (/^\/(?:version|версия|build|билд)$/i.test(text)) {
     await versionCommand(peerId);

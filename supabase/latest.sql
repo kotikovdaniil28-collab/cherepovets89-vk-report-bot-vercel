@@ -72,7 +72,7 @@ end $$;
 
 alter table public.vk_group_bindings
   add constraint vk_group_bindings_group_type_check
-  check (group_type in ('reports', 'staff', 'candidates', 'general', 'ai', 'nomod', 'off'));
+  check (group_type in ('reports', 'staff', 'candidates', 'general', 'ai', 'nomod', 'link', 'off'));
 
 create index if not exists vk_group_bindings_type_idx
   on public.vk_group_bindings (group_type);

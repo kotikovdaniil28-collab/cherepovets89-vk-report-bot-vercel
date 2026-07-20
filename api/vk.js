@@ -127,7 +127,7 @@ const DISCORD_RULES = {
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
   '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оскорби��ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.2': ['Учётные записи', 'Оскорби����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -2152,7 +2152,7 @@ async function listReports(peerId, options = {}) {
 async function userInfo(peerId, targetVkId) {
   const linked = await getLinkedUser(targetVkId);
   if (!linked) {
-    await sendMessage(peerId, `⚠️ VK ${targetVkId} не привязан.`);
+    await sendMessage(peerId, `��️ VK ${targetVkId} не привязан.`);
     return;
   }
 
@@ -2209,18 +2209,13 @@ async function reserveIncomingMessage(peerId, vkUserId, message, text) {
   if (processedMessageKeys.has(key)) return false;
   processedMessageKeys.set(key, now);
 
+  // Дедуп через БД (SELECT + INSERT) раньше был нужен, потому что VK пересылал
+  // сообщения повторно из-за медленного ответа. Теперь мы отвечаем VK 'ok'
+  // мгновенно (VK не дублирует), а in-memory карта выше уже блокирует повторы
+  // в рамках одного инстанса. Поэтому не держим ответ на этих round-trip'ах —
+  // запись маркера уходит в фон как страховка от кросс-инстансных дублей.
   const marker = `[dedupe] ${key}`;
-  try {
-    const { data, error } = await getSupabase()
-      .from('vk_ai_messages')
-      .select('id')
-      .eq('peer_id', String(peerId))
-      .eq('vk_user_id', String(vkUserId))
-      .eq('content', marker)
-      .limit(1);
-    if (!error && Array.isArray(data) && data.length) return false;
-    await addAiMessage(vkUserId, peerId, 'user', marker).catch(() => null);
-  } catch (_) {}
+  waitUntil(addAiMessage(vkUserId, peerId, 'user', marker).catch(() => null));
 
   return true;
 }
@@ -3128,7 +3123,7 @@ async function googleSheetDebugCommand(peerId) {
 
     await sendMessage(peerId, lines.join('\n'));
   } catch (error) {
-    await sendMessage(peerId, `⚠️ Таблица заявок недоступна: ${escapeLine(userFacingError(error))}`);
+    await sendMessage(peerId, `⚠️ Таблица заявок не��оступна: ${escapeLine(userFacingError(error))}`);
   }
 }
 
@@ -3446,7 +3441,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     '✅ Вердикт записан в Google Sheet',
     `📄 Лист: ${escapeLine(result.sheetName || '—')}`,
     `#️⃣ Строка: ${escapeLine(result.rowNumber || rowNumber)}`,
-    `⚖️ Вердикт: ${escapeLine(result.verdict || verdict)}`,
+    `⚖️ В��рдикт: ${escapeLine(result.verdict || verdict)}`,
     result.previousVerdict ? `↩️ Было: ${escapeLine(result.previousVerdict)}` : '',
     finalReason ? `💬 Комментарий: ${escapeLine(finalReason)}` : '',
     candidateLine,
@@ -3723,7 +3718,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
-    vision: 'Опиши изображение и ответь на вопрос пользователя. Не делай неподтверждённых обвинений по картинке.',
+    vision: 'Опиши изображение и ответь на вопрос пользователя. Не дела�� неподтверждённых обвинений по картинке.',
   }[mode] || 'Ответь как помощник.';
 
   const verified = verifiedAiFactsForUser(context.vkUserId);
@@ -4844,7 +4839,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
   if (type) {
     const requestedType = normalizeGroupType(type[1]);
     if (!requestedType) {
-      await sendMessage(peerId, '⚠️ Тип группы не распознан. Варианты: reports/отчеты, staff/стафф, candidates/кандидаты, ai/ии, general/общая, off/выкл.');
+      await sendMessage(peerId, '⚠️ Тип группы не распознан. Варианты: reports/отчеты, staff/стафф, candidates/кандидаты, ai/ии, general/общая, off/в��кл.');
       return true;
     }
     const normalized = await setGroupBinding(peerId, requestedType, vkUserId);
@@ -6527,7 +6522,7 @@ async function healthCommand(peerId, vkUserId) {
 
   try {
     await getSupabase().from('vk_link_codes').select('code', { head: true, count: 'exact' });
-    add('Коды привязки', true);
+    add('Код�� привязки', true);
   } catch (error) {
     add('Коды привязки', false, 'недоступны');
   }
@@ -7013,11 +7008,18 @@ async function handleMessageNew(payload) {
   if (!(await reserveIncomingMessage(peerId, vkUserId, message, text))) return;
 
   deleteExpiredSessions().catch(() => {});
+
+  // Грузим сессию параллельно с бан/приветственными проверками (для лички они
+  // почти всегда моментальны), чтобы к моменту использования она уже была
+  // готова и не добавляла отдельный round-trip в БД.
+  const sessionPromise = getSession(peerId, vkUserId);
+  sessionPromise.catch(() => {}); // не даём unhandled rejection, если гард выйдет раньше
+
   if (await enforceStickyBanInviteIfNeeded(peerId, message)) return;
   if (await welcomeIfNeeded(peerId, message)) return;
   if (await enforceStickyBanIfNeeded(peerId, vkUserId, message)) return;
 
-  const session = await getSession(peerId, vkUserId);
+  const session = await sessionPromise;
 
   if (ID_COMMAND_RE.test(text)) {
     await sendMessage(peerId, `🆔 Ваш VK ID: ${vkUserId}\n💬 ID беседы: ${peerId}`);
@@ -7223,7 +7225,7 @@ async function handleDigestCommand(peerId, vkUserId, text) {
 
   const lines = [
     '📊 ДАЙДЖЕСТ ЗА 7 ДНЕЙ',
-    '━━━━━━━━━━━━━━━━',
+    '━━━━━━━━━━━━��━━━',
     `📄 Отчётов сдано: ${totalReports}`,
     `✅ Одобрено: ${totalApproved}`,
     `👥 Активных модераторов: ${byUser.size}`,

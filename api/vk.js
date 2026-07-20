@@ -127,7 +127,7 @@ const DISCORD_RULES = {
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
   '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оскорбительные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.2': ['Учётные записи', 'Оскорби��ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -172,6 +172,7 @@ let supabaseClient;
 const memeCooldownByPeer = new Map();
 const aiInterventionCooldownByPeer = new Map();
 const processedMessageKeys = new Map();
+let lastSessionCleanupAt = 0;
 
 function env(name, fallback = '') {
   const value = process.env[name];
@@ -1209,7 +1210,15 @@ async function canUseStaffCommands(vkUserId, peerId) {
 }
 
 async function deleteExpiredSessions() {
-  const cutoff = new Date(Date.now() - SESSION_TTL_MS).toISOString();
+  // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
+  // всё равно чистит getSession(), поэтому глобальный проход не нужен на
+  // каждое сообщение — троттлим до одного раза в 10 минут, чтобы не делать
+  // лишний round-trip в БД и не задерживать ответ.
+  const now = Date.now();
+  if (now - lastSessionCleanupAt < 10 * 60 * 1000) return;
+  lastSessionCleanupAt = now;
+
+  const cutoff = new Date(now - SESSION_TTL_MS).toISOString();
   await getSupabase()
     .from('vk_report_sessions')
     .delete()
@@ -2858,7 +2867,7 @@ async function handlePromotionDecisionEvent(event, data) {
       '━━━━━━━━━━━━━━━━',
       `🏷 Новая должность: ${careerRankTitle(alert.to_rank)}`,
       '',
-      'Твоя работа замечена. Продолжай развиваться и помогать команде — впереди ещё много достижений! 🚀',
+      'Твоя работа замечена. Продолжай развиваться и помогать команде — впереди е��ё много достижений! 🚀',
     ].join('\n')).catch(() => null);
   }
   await editMessage(event.peerId, event.conversationMessageId, [
@@ -6236,7 +6245,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
   const stat = raw.match(/^\/(?:стата|stats|статистика|стат)\s+(\d{2,20})$/i);
   if (stat) {
     if (!(await canUseStaffCommands(vkUserId, peerId))) {
-      await sendMessage(peerId, '⛔ Статистика доступна владельцу или модератору.');
+      await sendMessage(peerId, '⛔ Статистика доступна владельцу или мо��ератору.');
       return true;
     }
     await statsCommand(peerId, stat[1]);
@@ -6930,7 +6939,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /состав синхронизировать — импортировать ГМ/ЗГМ/КМ/СМ/М/ММ на сайт',
       '• /повышения проверить — проверить условия и отправить карточки в STAFF',
       '',
-      'Бот сам ставит гиперссылки:',
+      '��от сам ставит гиперссылки:',
       '• VK → “VK ↗”',
       '• Форум/ФА → “ФА ↗”',
       '• Telegram → “TG ↗”',
@@ -6950,7 +6959,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /vision <вопрос> — разобрать фото через Grok Vision',
       '• /память — показать, что AI помнит о вас',
       '• /забыть — очистить память AI о вас',
-      '• /аиинструкция <текст> — постоянная инструкция AI от владельца',
+      '• /аиинструкция <текст> �� постоянная инструкция AI от владельца',
       '• запомни: <факт> — сохранить факт в память',
       '• грок, <вопрос> / бот, <вопрос>',
       '',
@@ -7003,7 +7012,7 @@ async function handleMessageNew(payload) {
   if (await shouldBlockUnconfiguredGroup(peerId, vkUserId, text)) return;
   if (!(await reserveIncomingMessage(peerId, vkUserId, message, text))) return;
 
-  await deleteExpiredSessions();
+  deleteExpiredSessions().catch(() => {});
   if (await enforceStickyBanInviteIfNeeded(peerId, message)) return;
   if (await welcomeIfNeeded(peerId, message)) return;
   if (await enforceStickyBanIfNeeded(peerId, vkUserId, message)) return;
@@ -7107,7 +7116,7 @@ async function handleInactiveCommand(peerId, vkUserId, text) {
       '━━━━━━━━━━━━━━━━',
       'Формат: /неактив <с> <по> <причина>',
       'Пример: /неактив 15.07.2026 20.07.2026 сессия в универе',
-      'Заявка уйдёт руководству на одобрение — статус смотрите на сайте в разделе «Неактивы».',
+      'Заявка уйдёт руководству на одобрение — статус смотр��те на сайте в разделе «Неактивы».',
     ].join('\n'));
     return true;
   }
@@ -7256,6 +7265,21 @@ module.exports = async function handler(req, res) {
       } catch (error) {
         res.status(500).json({ ok: false, error: error.message || String(error) });
       }
+      return;
+    }
+
+    if (task === 'keepwarm') {
+      // Держим "тёплыми" и функцию, и соединение с Supabase, чтобы первый
+      // реальный запрос от пользователя не тратил время на прогрев/handshake.
+      let db = false;
+      try {
+        await getSupabase()
+          .from('vk_report_sessions')
+          .select('session_key', { head: true, count: 'exact' })
+          .limit(1);
+        db = true;
+      } catch (_) {}
+      res.status(200).json({ ok: true, warm: true, db, service: BUILD_VERSION });
       return;
     }
 

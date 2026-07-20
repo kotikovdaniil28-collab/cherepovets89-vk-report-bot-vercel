@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v51-black-russia-cards';
+const BUILD_VERSION = 'v52-faster-responses';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -127,7 +127,7 @@ const DISCORD_RULES = {
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
   '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оскорби��ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.2': ['Учётные записи', 'Оскорби����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -709,12 +709,16 @@ async function sendMessage(peerId, text, options = {}) {
   const message = cleanText(text).slice(0, MAX_VK_MESSAGE);
   if (!message) return null;
 
+  // Для бесед отправляем через peer_ids: VK тогда сразу возвращает
+  // conversation_message_id, и не нужен второй запрос messages.getById.
+  const group = isGroupPeer(peerId);
   const params = {
-    peer_id: String(peerId),
     random_id: String(Math.floor(Math.random() * 2147483647)),
     disable_mentions: options.disableMentions === false ? '0' : '1',
     message,
   };
+  if (group) params.peer_ids = String(peerId);
+  else params.peer_id = String(peerId);
 
   if (options.keyboard) {
     params.keyboard = typeof options.keyboard === 'string'
@@ -730,20 +734,21 @@ async function sendMessage(peerId, text, options = {}) {
 
   const response = await vkApi('messages.send', params);
 
-  if (typeof response === 'number') {
-    if (isGroupPeer(peerId)) {
-      try {
-        const got = await vkApi('messages.getById', { message_ids: String(response) });
-        const item = got && Array.isArray(got.items) ? got.items[0] : null;
-        if (item && item.peer_id && String(item.peer_id) === String(peerId) && item.conversation_message_id) {
-          return Number(item.conversation_message_id);
-        }
-      } catch (error) {
-        console.warn('messages.getById after send failed:', error.message || error);
-      }
+  if (group && Array.isArray(response)) {
+    const item = response[0] || null;
+    if (item && item.error) {
+      const code = Number(item.error.code) || 0;
+      const description = item.error.description || 'Unknown VK API error';
+      const error = new Error(`VK API error ${code || 'unknown'}: ${description}`);
+      error.vkCode = code;
+      throw error;
     }
-    return response;
+    if (item && item.conversation_message_id) return Number(item.conversation_message_id);
+    if (item && item.message_id) return Number(item.message_id);
+    return null;
   }
+
+  if (typeof response === 'number') return response;
   if (response && typeof response.message_id === 'number') return response.message_id;
   if (response && typeof response.conversation_message_id === 'number') return response.conversation_message_id;
   return null;
@@ -2152,7 +2157,7 @@ async function listReports(peerId, options = {}) {
 async function userInfo(peerId, targetVkId) {
   const linked = await getLinkedUser(targetVkId);
   if (!linked) {
-    await sendMessage(peerId, `⚠️ VK ${targetVkId} не привязан.`);
+    await sendMessage(peerId, `��️ VK ${targetVkId} не привязан.`);
     return;
   }
 
@@ -3128,7 +3133,7 @@ async function googleSheetDebugCommand(peerId) {
 
     await sendMessage(peerId, lines.join('\n'));
   } catch (error) {
-    await sendMessage(peerId, `⚠️ Таблица заявок недоступна: ${escapeLine(userFacingError(error))}`);
+    await sendMessage(peerId, `⚠️ Таблица заявок не��оступна: ${escapeLine(userFacingError(error))}`);
   }
 }
 
@@ -3446,7 +3451,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     '✅ Вердикт записан в Google Sheet',
     `📄 Лист: ${escapeLine(result.sheetName || '—')}`,
     `#️⃣ Строка: ${escapeLine(result.rowNumber || rowNumber)}`,
-    `⚖️ Вердикт: ${escapeLine(result.verdict || verdict)}`,
+    `⚖️ В��рдикт: ${escapeLine(result.verdict || verdict)}`,
     result.previousVerdict ? `↩️ Было: ${escapeLine(result.previousVerdict)}` : '',
     finalReason ? `💬 Комментарий: ${escapeLine(finalReason)}` : '',
     candidateLine,
@@ -4731,7 +4736,10 @@ async function welcomeIfNeeded(peerId, message) {
   const action = message && message.action;
   const type = action && cleanText(action.type || action.action);
   if (!/chat_invite_user|chat_invite_user_by_link|chat_create/i.test(type)) return false;
-  const groupType = await getGroupType(peerId).catch(() => '');
+  const [groupType, attachment] = await Promise.all([
+    getGroupType(peerId).catch(() => ''),
+    getCardAttachment('welcome', peerId),
+  ]);
   const targetId = action.member_id || action.memberId || action.user_id || '';
   const hello = [
     targetId ? `👋 Добро пожаловать, @id${targetId}` : '👋 Добро пожаловать.',
@@ -4740,7 +4748,6 @@ async function welcomeIfNeeded(peerId, message) {
     '',
     'Команды: /help, /rules, /ид',
   ].join('\n');
-  const attachment = await getCardAttachment('welcome', peerId);
   await sendMessage(peerId, hello, { disableMentions: false, ...(attachment ? { attachment } : {}) });
   return true;
 }
@@ -5531,8 +5538,8 @@ async function cancelActiveModerationActions(peerId, actorVkId, options = {}) {
   return Number(count || 0);
 }
 
-async function enforceStickyBanIfNeeded(peerId, vkUserId, message) {
-  const ban = await activeStickyBanFor(peerId, vkUserId);
+async function enforceStickyBanIfNeeded(peerId, vkUserId, message, preloadedBan) {
+  const ban = preloadedBan !== undefined ? preloadedBan : await activeStickyBanFor(peerId, vkUserId);
   if (!ban) return false;
 
   await deleteMessagesBestEffort(peerId, [messageId(message)]);
@@ -5626,7 +5633,7 @@ async function unbanVkUser(peerId, actorVkId, targetInput, fallbackVkId = '') {
     cancelled
       ? `✅ Активных банов снято: ${cancelled}. Липкий кик отключён.`
       : 'ℹ️ Активный бан в этой беседе не найден.',
-    'Теперь пользователя можно снова пригласить.',
+    'Теперь пользовател�� можно снова пригласить.',
   ].join('\n'));
 }
 
@@ -5818,7 +5825,7 @@ async function listModerationLog(peerId, actorVkId, limitInput = 15) {
   });
 
   await sendMessage(peerId, [
-    '📋 ЖУРНАЛ МОДЕРАЦИИ',
+    '📋 ЖУРНАЛ МОДЕРАЦИ��',
     '━━━━━━━━━━━━━━━━',
     expired ? `🟡 Автоистечение: обновлено ${expired}` : '',
     '',
@@ -6933,7 +6940,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '📋 Автозаполнение Discord состава',
       'Работает только в staff-беседе.',
       '',
-      '• /состав добавить — открыть мини-форму',
+      '• /соста�� добавить — открыть мини-форму',
       '• /состав добавить Nick_Name | Должность | Имя | МСК | VK | ФА | 0/2 | 0/3 | Discord ID | Discord Tag | TG',
       '• /состав фикс 20 — починить гиперссылки/формулы в строке 20',
       '• /состав синхронизировать — импортировать ГМ/ЗГМ/КМ/СМ/М/ММ на сайт',
@@ -7013,11 +7020,18 @@ async function handleMessageNew(payload) {
   if (!(await reserveIncomingMessage(peerId, vkUserId, message, text))) return;
 
   deleteExpiredSessions().catch(() => {});
+
+  // Запускаем независимые обращения к БД параллельно, чтобы не ждать их по очереди.
+  const stickyBanPromise = activeStickyBanFor(peerId, vkUserId);
+  const sessionPromise = getSession(peerId, vkUserId);
+  stickyBanPromise.catch(() => {});
+  sessionPromise.catch(() => {});
+
   if (await enforceStickyBanInviteIfNeeded(peerId, message)) return;
   if (await welcomeIfNeeded(peerId, message)) return;
-  if (await enforceStickyBanIfNeeded(peerId, vkUserId, message)) return;
+  if (await enforceStickyBanIfNeeded(peerId, vkUserId, message, await stickyBanPromise)) return;
 
-  const session = await getSession(peerId, vkUserId);
+  const session = await sessionPromise;
 
   if (ID_COMMAND_RE.test(text)) {
     await sendMessage(peerId, `🆔 Ваш VK ID: ${vkUserId}\n💬 ID беседы: ${peerId}`);
@@ -7027,8 +7041,11 @@ async function handleMessageNew(payload) {
   const help = text.match(HELP_COMMAND_RE);
   if (help) {
     const page = normalizeHelpPage(help[1] || '');
-    const attachment = await getCardAttachment(page, peerId);
-    await sendMessage(peerId, await helpText(vkUserId, peerId, help[1] || ''), {
+    const [attachment, helpBody] = await Promise.all([
+      getCardAttachment(page, peerId),
+      helpText(vkUserId, peerId, help[1] || ''),
+    ]);
+    await sendMessage(peerId, helpBody, {
       keyboard: helpKeyboard(help[1] || 'main'),
       ...(attachment ? { attachment } : {}),
     });

@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v58-ai-debug';
+const BUILD_VERSION = 'v59-agentrouter-official';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -96,7 +96,7 @@ const DISCORD_RULES = {
   '1.6': ['Общая информация', 'В зависимости от тяжести нарушения возможно дополнительное внутриигровое наказание.', '—'],
   '1.7': ['Общая информация', 'Руководство проекта, руководитель модераторов, заместители и главный администратор могут выдавать наказания на своё усмотрение, если действия вредят проекту.', '—'],
   '1.8': ['Общая информация', 'Правила могут распространяться на личные сообщения, если действия вредят проекту.', '—'],
-  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко�����фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
+  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко�������фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.2': ['Общие правила', 'Трансфер Discord-валюты между серверами проекта.', 'Перманентная блокировка / Обнуление'],
   '2.3': ['Общие правила', 'Реклама любого направления, кроме официальных ресурсов проекта. Реклама других игровых проектов и вещей за реальные средства — глобальная блокировка.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.4': ['Общие правила', 'Возрастной, интимный, насильственный или шок-контент.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
@@ -126,7 +126,7 @@ const DISCORD_RULES = {
   '4.2': ['Голосовые каналы', 'Использование сторонних программ для воспроизведения звуков через микрофон.', 'Устное предупреждение / Мут 90 минут'],
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
-  '5.1': ['Учётные записи', 'Копировани�� чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
+  '5.1': ['Учётные записи', 'Копировани��� чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
   '5.2': ['Учётные записи', 'Оско��би�����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
@@ -1217,7 +1217,7 @@ async function canUseStaffCommands(vkUserId, peerId) {
 }
 
 async function deleteExpiredSessions() {
-  // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
+  // Это чисто уборка старых сессий. Истёкшую сессию ��амого пользователя
   // всё равно чистит getSession(), поэтому глобальный проход не нужен на
   // каждое сообщение — троттлим до одно��о раза �� 10 минут, чтобы ��е делать
   // лишний round-trip в БД и не задерживать ответ.
@@ -1498,7 +1498,7 @@ async function reviewReportWithAi(sessionData, proofs) {
     '}',
     '',
     'accept только если отчёт выглядит заполненным и доказательства есть.',
-    'reject только если отчё�� явно пу����той/мусорный/без доказательств. Иначе review.',
+    'reject только если отчё���� явно пу����той/мусорный/без доказательств. Иначе review.',
     'Не начисляй XP.',
   ].filter(Boolean).join('\n');
 
@@ -3122,7 +3122,7 @@ async function googleSheetDebugCommand(peerId) {
       await sendMessage(peerId, [
         '📊 ТАБЛИЦА ЗАЯВОК',
         fallbackNote,
-        `📄 Лист: ${escapeLine(data.sheetName || '—')}`,
+        `�� Лист: ${escapeLine(data.sheetName || '—')}`,
         `📋 Открытых заявок: ${items.length}`,
         `⚖️ Вердикт: ${escapeLine(verdictHeader || 'не найден')}`,
         '',
@@ -3535,7 +3535,8 @@ function xaiBaseUrl() {
 }
 
 function xaiTextModel() {
-  if (usingAgentRouter()) return env('AI_TEXT_MODEL', 'gpt-5.5');
+  // В официальной документации AgentRouter для Codex указан ID gpt-5.
+  if (usingAgentRouter()) return env('AI_TEXT_MODEL', 'gpt-5');
   if (usingGateway()) return env('AI_TEXT_MODEL', 'openai/gpt-5.6-sol');
   return env('XAI_TEXT_MODEL', 'grok-3');
 }
@@ -3737,26 +3738,14 @@ function xaiTextFromResponse(data) {
   return stripThinking(data?.output_text || data?.text || '');
 }
 
-// Краткая диагностика ответа AI для случая, когда текст извлечь не удалось.
-function aiEmptyAnswerDebug(data) {
-  try {
-    const choice = data?.choices?.[0];
-    const finish = choice?.finish_reason || choice?.finishReason || '—';
-    const raw = JSON.stringify(choice?.message ?? data ?? {}).slice(0, 350);
-    return `finish=${finish}, ответ: ${raw}`;
-  } catch {
-    return 'не удалось разобрать ответ';
-  }
-}
-
 // Параметры лимита токенов: рассуждающие модели (gpt-5.x) тратят токены на
 // «размышления», поэтому лимит нужен больше и через max_completion_tokens.
 function aiTokenParams(defaultTokens = 900) {
   const n = Number(env('XAI_MAX_TOKENS', String(defaultTokens))) || defaultTokens;
-  if (usingAgentRouter() || usingGateway()) {
-    // reasoning_effort: low — чтобы gpt-5.x не сжигал все токены на размышления
-    return { max_completion_tokens: Math.max(n, 4000), reasoning_effort: env('AI_REASONING_EFFORT', 'low') };
-  }
+  // AgentRouter документирует OpenAI-совместимый max_tokens. Не отправляем
+  // нестандартный reasoning_effort: шлюз может молча вернуть пустой объект.
+  if (usingAgentRouter()) return { max_tokens: Math.max(n, 2000) };
+  if (usingGateway()) return { max_completion_tokens: Math.max(n, 2000) };
   return { max_tokens: n };
 }
 
@@ -3800,7 +3789,7 @@ function shouldUseWebSearch(question) {
 function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = '') {
   const modeHint = {
     ai: 'Ответь как собеседник и помощник.',
-    advice: 'Дай краткий совет модератору: ��то проверить и что сделать.',
+    advice: 'Дай краткий совет модерато��у: ��то проверить и что сделать.',
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
@@ -3811,7 +3800,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
   const roastMode = env('AI_PERSONA', 'roast').toLowerCase();
   const allowProfanity = boolEnv('AI_ALLOW_PROFANITY', true);
   return [
-    'Ты нейросеть VK-бота CHEREPOVETS (GPT-5.6 Sol): дерзкий, смешной, быстрый и не душный.',
+    'Ты нейросеть VK-бота CHEREPOVETS: дерзкий, смешной, быстрый и не душный.',
     'Контекст: это сообщество сервера Череповец в игре Black Russia (CRMP, GTA-подобная русская RP-игра). Ты знаешь сленг игры: РП, ДМ, ПГ, МГ, слив, вирт, фракция, госструктура, семья, бизвар.',
     'Пиши по-русски, живо, с реакциями как в чате. Обычно 1-4 коротких строки, если не просят подробно.',
     roastMode === 'roast'
@@ -3869,15 +3858,22 @@ async function askXaiText(mode, question, context = {}) {
       }),
     });
 
-    const data = await response.json().catch(() => null);
+    const contentType = response.headers.get('content-type') || '';
+    const rawBody = await response.text();
+    let data = null;
+    if (/application\/json/i.test(contentType) || /^[\s]*[\[{]/.test(rawBody)) {
+      try { data = JSON.parse(rawBody); } catch { data = null; }
+    }
+    if (/aliyun_waf|<!doctypehtml|<html/i.test(rawBody)) {
+      return 'AgentRouter заблокировал сервер Vercel своей WAF-защитой. API недоступен с этого хостинга.';
+    }
     if (!response.ok) {
-      const details = data?.error?.message || data?.message || `HTTP ${response.status}`;
+      const details = data?.error?.message || data?.message || rawBody.slice(0, 240) || `HTTP ${response.status}`;
       return `AI-помощник временно недоступен: ${userFacingError(details)}`;
     }
     const answer = compactAiAnswer(xaiTextFromResponse(data));
     if (answer) return answer;
-    console.log('[v0] AI empty answer:', aiEmptyAnswerDebug(data));
-    return `Не нашёл ответ (${aiEmptyAnswerDebug(data)})`;
+    return `AgentRouter вернул пустой ответ для модели ${model}. Проверь точное имя модели в консоли AgentRouter.`;
   } catch (error) {
     if (error.name === 'AbortError') return 'AI-помощник не успел ответить. Сократи запрос.';
     return `AI-помощник временно недоступен: ${userFacingError(error)}`;
@@ -4193,7 +4189,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
   if (!match) return false;
   try {
     if (!(await canUseAi(vkUserId, peerId))) {
-      await sendMessage(peerId, '⛔ Генерация картинок доступна владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
+      await sendMessage(peerId, '⛔ Генерация картинок доступн�� владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
       return true;
     }
     if (!xaiApiKey()) {
@@ -4881,7 +4877,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
       .limit(50);
     if (error) throw error;
     if (!data || !data.length) {
-      await sendMessage(peerId, '📭 Беседы ещё не назначены.');
+      await sendMessage(peerId, '📭 Б��седы ещё не назначены.');
       return true;
     }
     await sendMessage(peerId, `🧩 БЕСЕДЫ БОТА\n━━━━━━━━━━━━━━━━\n\n${data.map(x => `• ${groupTypeTitle(x.group_type)}${x.title ? ` · ${escapeLine(x.title)}` : ''}`).join('\n')}`);
@@ -5829,7 +5825,7 @@ async function listModerationActions(peerId, actorVkId, targetInput) {
   }
   const targetVkId = await resolveVkTarget(targetInput);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял пользоват��ля. Пример: /наказания @id123');
+    await sendMessage(peerId, '⚠️ Не понял по��ьзоват��ля. Пример: /наказания @id123');
     return;
   }
   const { data, error } = await getSupabase()
@@ -6100,7 +6096,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
     return true;
   }
 
-  const userAny = raw.match(/^\/(?:юзер|user|профиль|пользователь|инфо)\s+(.+)$/i);
+  const userAny = raw.match(/^\/(?:юзер|user|профиль|пользов��тель|инфо)\s+(.+)$/i);
   if (userAny && !/^(?:email|почта)\s+/i.test(userAny[1]) && !/^\d{2,20}$/.test(cleanText(userAny[1]))) {
     if (!(await canUseStaffCommands(vkUserId, peerId))) {
       await sendMessage(peerId, '⛔ Просмотр пользователя доступен staff/модераторам.');

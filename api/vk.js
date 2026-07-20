@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v53-gateway-gpt56-sol';
+const BUILD_VERSION = 'v54-gateway-priority';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -96,7 +96,7 @@ const DISCORD_RULES = {
   '1.6': ['Общая информация', 'В зависимости от тяжести нарушения возможно дополнительное внутриигровое наказание.', '—'],
   '1.7': ['Общая информация', 'Руководство проекта, руководитель модераторов, заместители и главный администратор могут выдавать наказания на своё усмотрение, если действия вредят проекту.', '—'],
   '1.8': ['Общая информация', 'Правила могут распространяться на личные сообщения, если действия вредят проекту.', '—'],
-  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига конфликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
+  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко��фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.2': ['Общие правила', 'Трансфер Discord-валюты между серверами проекта.', 'Перманентная блокировка / Обнуление'],
   '2.3': ['Общие правила', 'Реклама любого направления, кроме официальных ресурсов проекта. Реклама других игровых проектов и вещей за реальные средства — глобальная блокировка.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.4': ['Общие правила', 'Возрастной, интимный, насильственный или шок-контент.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
@@ -126,8 +126,8 @@ const DISCORD_RULES = {
   '4.2': ['Голосовые каналы', 'Использование сторонних программ для воспроизведения звуков через микрофон.', 'Устное предупреждение / Мут 90 минут'],
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
-  '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оскорби����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.1': ['Учётные записи', 'Копирование чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
+  '5.2': ['Учётные записи', 'Оскорби�����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -187,15 +187,15 @@ function candidatesInviteLink() {
 function userFacingError(error, fallback = 'Команда временно недоступна. Попробуйте позже или передайте владельцу бота.') {
   const raw = String(error && (error.message || error) || '');
   if (!raw) return fallback;
+  if (/XAI|x\.ai|Grok|Imagine|gateway|quota|billing|api key|unauthorized|authentication|model/i.test(raw)) {
+    return 'AI сейчас недоступен. Проверьте AI_GATEWAY_API_KEY, модель и лимиты.';
+  }
   if (/bad secret|forbidden|403/i.test(raw)) return 'Доступ к таблице не прошёл проверку. Передайте владельцу бота.';
   if (/GOOGLE_APPS_SCRIPT_URL|Apps Script|Google Apps Script|script\.google|Web App|unknown mode|HTML/i.test(raw)) {
     return 'Модуль таблицы сейчас недоступен. Передайте владельцу бота.';
   }
   if (/Supabase|SQL|relation .* does not exist|schema cache|database/i.test(raw)) {
     return 'База данных сейчас недоступна. Передайте владельцу бота.';
-  }
-  if (/XAI|x\.ai|Grok|Imagine|gateway|quota|billing|api key|unauthorized|authentication|model/i.test(raw)) {
-    return 'AI сейчас недоступен. Проверьте AI_GATEWAY_API_KEY, модель и лимиты.';
   }
   if (/VK API error/i.test(raw)) return raw.replace(/^VK API error\s*/i, 'VK: ').slice(0, 220);
   return raw.slice(0, 220);
@@ -953,7 +953,7 @@ function applicationVerdictKeyboard(rowNumber) {
         vkTextButton('↻ Обновить', '/заявки 5'),
       ],
       [
-        vkTextButton('↶ Ве��нуть на проверку', `/заявка вернуть ${row}`),
+        vkTextButton('↶ В����нуть на проверку', `/заявка вернуть ${row}`),
       ],
     ],
   };
@@ -1217,7 +1217,7 @@ async function canUseStaffCommands(vkUserId, peerId) {
 async function deleteExpiredSessions() {
   // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
   // всё равно чистит getSession(), поэтому глобальный проход не нужен на
-  // каждое сообщение — троттлим до одного раза в 10 минут, чтобы ��е делать
+  // каждое сообщение — троттлим до одного раза �� 10 минут, чтобы ��е делать
   // лишний round-trip в БД и не задерживать ответ.
   const now = Date.now();
   if (now - lastSessionCleanupAt < 10 * 60 * 1000) return;
@@ -1454,7 +1454,7 @@ async function loadUserForReport(vkUserId) {
 
   const moderator = await isModerator(linked.site_user_id);
   if (!moderator) {
-    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом модерат��ра на сайте.' };
+    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользовате��и со статусом модерат��ра на сайте.' };
   }
 
   return {
@@ -2751,7 +2751,7 @@ function promotionAlertText(career, progress) {
     '━━━━━━━━━━━━━━━━',
     `👤 ${escapeLine(career.nickname || career.email || career.site_user_id)}`,
     `🏷 Сейчас: ${careerRankTitle(career.rank)}`,
-    `🎯 Следующая должность: ${careerRankTitle(next)}`,
+    `🎯 Следу��щая должность: ${careerRankTitle(next)}`,
     `📅 На должности: ${progress.days} дн.`,
     `🧾 Одобрено отчётов: ${progress.approved}`,
     `🔥 Перенорма / Герой дня: ${progress.high}`,
@@ -3125,7 +3125,7 @@ async function googleSheetDebugCommand(peerId) {
         `⚖️ Вердикт: ${escapeLine(verdictHeader || 'не найден')}`,
         '',
         items.length
-          ? `Последняя открытая строка: #${escapeLine(items[0].rowNumber || '—')}`
+          ? `Последняя открытая строк��: #${escapeLine(items[0].rowNumber || '—')}`
           : 'Открытых строк не найдено.',
       ].filter(Boolean).join('\n'));
       return;
@@ -3513,32 +3513,43 @@ async function adminLinkCommand(peerId, vkUserId, text) {
 
 // ===== AI: Vercel AI Gateway (модель GPT-5.6 Sol) =====
 // Ключ хранится в переменной окружения AI_GATEWAY_API_KEY (не в коде!).
+// Когда задан AI_GATEWAY_API_KEY, старые переменные XAI_* полностью игнорируются,
+// чтобы grok-модели и api.x.ai не перебивали настройки Gateway.
+function usingGateway() {
+  return !!env('AI_GATEWAY_API_KEY');
+}
+
 function xaiApiKey() {
   return env('AI_GATEWAY_API_KEY') || env('XAI_API_KEY') || env('GROK_API_KEY');
 }
 
 function xaiBaseUrl() {
-  return env('AI_BASE_URL', env('XAI_BASE_URL', 'https://ai-gateway.vercel.sh/v1')).replace(/\/+$/, '');
+  if (usingGateway()) return env('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1').replace(/\/+$/, '');
+  return env('XAI_BASE_URL', 'https://api.x.ai/v1').replace(/\/+$/, '');
 }
 
 function xaiTextModel() {
-  return env('AI_TEXT_MODEL', env('XAI_TEXT_MODEL', 'openai/gpt-5.6-sol'));
+  if (usingGateway()) return env('AI_TEXT_MODEL', 'openai/gpt-5.6-sol');
+  return env('XAI_TEXT_MODEL', 'grok-3');
 }
 
 function xaiSearchModel() {
-  return env('AI_SEARCH_MODEL', xaiTextModel());
+  if (usingGateway()) return env('AI_SEARCH_MODEL', xaiTextModel());
+  return env('XAI_SEARCH_MODEL', xaiTextModel());
 }
 
 function xaiVisionModel() {
-  return env('AI_VISION_MODEL', xaiTextModel());
+  if (usingGateway()) return env('AI_VISION_MODEL', xaiTextModel());
+  return env('XAI_VISION_MODEL', xaiTextModel());
 }
 
 function xaiImageModel() {
-  return env('AI_IMAGE_MODEL', env('XAI_IMAGE_MODEL', 'openai/gpt-image-2'));
+  if (usingGateway()) return env('AI_IMAGE_MODEL', 'openai/gpt-image-2');
+  return env('XAI_IMAGE_MODEL', 'grok-imagine-image-quality');
 }
 
 function aiProviderName() {
-  if (env('AI_GATEWAY_API_KEY')) return 'vercel-ai-gateway';
+  if (usingGateway()) return 'vercel-ai-gateway';
   if (xaiApiKey()) return 'xai';
   return 'none';
 }
@@ -3768,7 +3779,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
     'Не используй Markdown-таблицы и длинные полотна.',
     modeHint,
     '',
-    verified.length ? `Проверенные факты:\n${verified.map(x => `- ${x}`).join('\n')}` : '',
+    verified.length ? `Проверенные фа��ты:\n${verified.map(x => `- ${x}`).join('\n')}` : '',
     ownerInstruction ? `Инструкция владельца:\n${ownerInstruction}` : '',
     '',
     AI_RULE_CONTEXT,
@@ -4868,7 +4879,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
       `📌 Название: ${title}`,
       inviteLink ? `🔗 Приглашение: ${inviteLink}` : '⚠️ Ссылку-приглашение получить не удалось — создайте её в настройках беседы.',
       '',
-      '👥 Перешлите ссылку команде — при входе по ней бот сразу видит все сообщения.',
+      '👥 Перешлите ссылку команде — при входе по ней бот сразу видит все сооб��ения.',
     ].join('\n'));
     return true;
   }
@@ -6609,7 +6620,7 @@ async function aiTestCommand(peerId, vkUserId) {
   const add = (name, ok, detail = '') => checks.push(`${ok ? '✅' : '⚠️'} ${name}${detail ? `: ${detail}` : ''}`);
   add('Build', true, BUILD_VERSION);
   add('Провайдер', aiProviderName() !== 'none', aiProviderName());
-  add('XAI_API_KEY', !!xaiApiKey());
+  add('AI ключ', !!xaiApiKey(), usingGateway() ? 'AI_GATEWAY_API_KEY' : (xaiApiKey() ? 'XAI_API_KEY (старый)' : 'не задан'));
   add('Text model', !!xaiTextModel(), xaiTextModel());
   add('Web search', boolEnv('XAI_WEB_SEARCH_ENABLED', true), boolEnv('XAI_WEB_SEARCH_ENABLED', true) ? xaiSearchModel() : 'off');
   add('Vision model', !!xaiVisionModel(), xaiVisionModel());
@@ -6950,7 +6961,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '📨 Заявки кандидатов',
       '• /заявки — показать заявки без вердикта',
       '• /заявки 10 — показать до 10 заявок',
-      '• /заявка принять 23 — записать вердикт “Принят”',
+      '• /заявка принять 23 — записать вердикт “П��инят”',
       '• /заявка собес 23 — записать “Собеседование”',
       '• /заявка отказ 23 причина — записать отказ и комментарий',
       '• /заявка в состав 23 — занести строку заявки в Discord состав',

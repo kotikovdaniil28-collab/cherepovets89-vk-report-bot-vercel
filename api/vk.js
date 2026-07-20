@@ -1,4 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
+let waitUntil;
+try {
+  ({ waitUntil } = require('@vercel/functions'));
+} catch (_) {
+  // Fallback for environments without @vercel/functions (e.g. local dev)
+  waitUntil = (promise) => promise;
+}
 
 const SESSION_TTL_MS = 25 * 60 * 1000;
 const REPORT_QUALITY = ['Норма', 'Перенорма', 'Натяг', 'Герой дня'];
@@ -1724,7 +1731,7 @@ async function startReport(peerId, vkUserId, message) {
     `🧾 СДАЧА ОТЧЁТА\n\n` +
     `👤 Аккаунт: ${data.nick}\n\n` +
     `1/4 Напишите, что сделали за день.\n` +
-    `✖️ Отмена: /отмена`,
+    `✖️ Отмена: /от��ена`,
     data
   );
 
@@ -3556,7 +3563,7 @@ function factFromMessage(text) {
 function isUnsafeAiFact(fact) {
   const raw = cleanText(fact).toLowerCase().replace(/ё/g, 'е');
   if (!raw) return true;
-  if (/\b(?:я|меня|мой)\s+(?:гм|згм|куратор|км|владелец|главный|админ|администратор|модератор)\b/i.test(raw)) return true;
+  if (/\b(?:я|��еня|мой)\s+(?:гм|згм|куратор|км|владелец|главный|админ|администратор|модератор)\b/i.test(raw)) return true;
   if (/\b(?:он|она|они|этот|эта|пользователь|юзер)\b.*\b(?:лох|дурак|тупой|нарушитель|скамер|мошенник|читер|слит|виноват)\b/i.test(raw)) return true;
   if (/\b(?:лох|дурак|тупой|дебил|клоун|чмо)\b/i.test(raw)) return true;
   if (/\b(?:точно|факт|доказано)\b.*\b(?:нарушил|виноват|скамер|читер)\b/i.test(raw)) return true;
@@ -3926,7 +3933,7 @@ async function uploadVkMessagePhoto(peerId, buffer, contentType = 'image/png') {
   const form = new FormData();
   form.append('photo', new Blob([buffer], { type: contentType }), 'grok.png');
   const uploaded = await fetch(upload.upload_url, { method: 'POST', body: form }).then(r => r.json());
-  if (!uploaded || !uploaded.photo) throw new Error('VK не принял файл изображения.');
+  if (!uploaded || !uploaded.photo) throw new Error('VK не принял фай�� изображения.');
 
   const saved = await vkApi('photos.saveMessagesPhoto', {
     photo: uploaded.photo,
@@ -4130,7 +4137,7 @@ async function handleVisionCommand(peerId, vkUserId, text, message) {
     return true;
   }
   if (!urls.length) {
-    await sendMessage(peerId, '⚠️ Прикрепи фото или ответь командой /vision на сообщение с фото.');
+    await sendMessage(peerId, '⚠️ Прикреп�� фото или ответь командой /vision на сообщение с фото.');
     return true;
   }
 
@@ -4225,7 +4232,7 @@ async function handleAiCommand(peerId, vkUserId, text) {
           : cmd === 'шаблон' ? 'template'
             : 'ai';
   } else {
-    const mention = raw.match(/^(?:бот|bot|ч89|ch89|grok|грок|xai|иксай|ии|нейро)[,!\s]+([\s\S]+)$/i);
+    const mention = raw.match(/^(?:бот|bot|ч89|ch89|grok|грок|xai|иксай|ии|н��йро)[,!\s]+([\s\S]+)$/i);
     if (mention) {
       mode = 'ai';
       question = mention[1];
@@ -4471,7 +4478,7 @@ async function buildMemePromptFromChat(peerId, vkUserId, chatLines) {
     '',
     'Как выглядит хороший мем:',
     '1. Есть узнаваемый конфликт/контраст: ожидание vs реальность, модератор vs хаос, "я всё понял" vs "опять 2.1?".',
-    '2. Есть один короткий панчлайн, а не куча случайных слов. Текст на картинке максимум 3-7 слов, крупный и читаемый.',
+    '2. Есть один ��ороткий панчлайн, а не куча случайных слов. Текст на картинке максимум 3-7 слов, крупный и читаемый.',
     '3. Шутка строится на ситуации из чата, а не на абстрактном "бот смешной".',
     '4. Визуал должен быть простым: 1-2 персонажа/объекта, понятная эмоция, один главный фокус.',
     '',
@@ -4871,7 +4878,7 @@ function reportPayloadFromRow(row) {
     nick: payload.nick || payload.nickname || (combined.match(/Ник:\s*([^|]+)/i)?.[1] || ''),
     work: payload.work || payload.comment || (combined.match(/Работа:\s*([^|]+)/i)?.[1] || ''),
     date: payload.date || payload.day || (combined.match(/Дата:\s*([^|]+)/i)?.[1] || ''),
-    quality: payload.quality || payload.requestedStatus || (combined.match(/Тип сдачи:\s*([^|]+)/i)?.[1] || ''),
+    quality: payload.quality || payload.requestedStatus || (combined.match(/Тип сд��чи:\s*([^|]+)/i)?.[1] || ''),
     userId: payload.userId || payload.user_id || '',
     vkUserId: payload.vkUserId || '',
   };
@@ -5627,7 +5634,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
   }
   const targetVkId = await resolveModerationTarget(targetInput, fallbackVkId);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м флуд');
+    await sendMessage(peerId, '⚠️ Не понял польз��вателя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м флуд');
     return;
   }
   const targetAccess = await canModerateTarget(actorVkId, targetVkId);
@@ -6625,7 +6632,7 @@ async function aiDebugCommand(peerId, vkUserId, text) {
     `Cooldown: ${Math.ceil((decision.interventionCooldownMs || 0) / 1000)} сек`,
     '',
     'Последние chat-lines:',
-    lines.length ? lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '—',
+    lines.length ? lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '��',
     '',
     'Проверить конкретный текст:',
     '/aidebug 2.1 это или нет?',
@@ -6787,7 +6794,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '',
       '📨 Staff: /панель · /заявки · /роли · /состав',
       '',
-      'Кнопки ниже — подробные разделы с полным списком.',
+      'Кнопки ниже — подробные разделы с полным списко��.',
     ],
     base: [
       ...header,
@@ -7282,30 +7289,36 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  try {
-    if (payload.type === 'message_new') await handleMessageNew(payload);
-    if (payload.type === 'message_event') await handleMessageEvent(payload);
-  } catch (error) {
-    console.error('VK callback handler error:', error);
-
-    if (payload.type === 'message_event') {
-      const object = payload.object || {};
-      try {
-        await answerMessageEvent(object.event_id, object.user_id, object.peer_id, userFacingError(error));
-      } catch (_) {}
-      res.status(200).send('ok');
-      return;
-    }
-
-    const message = getMessage(payload);
-    if (message && message.peer_id) {
-      try {
-        await sendMessage(message.peer_id, `❌ Ошибка бота: ${userFacingError(error)}`);
-      } catch (sendError) {
-        console.error('Failed to send VK error message:', sendError);
-      }
-    }
-  }
-
+  // Мгновенно подтверждаем VK, чтобы он не ждал завершения обработки
+  // и не слал повторные события (иначе бывают дубли ответов и задержки).
+  // Саму обработку выполняем в фоне через waitUntil.
   res.status(200).send('ok');
+
+  waitUntil(
+    (async () => {
+      try {
+        if (payload.type === 'message_new') await handleMessageNew(payload);
+        if (payload.type === 'message_event') await handleMessageEvent(payload);
+      } catch (error) {
+        console.error('VK callback handler error:', error);
+
+        if (payload.type === 'message_event') {
+          const object = payload.object || {};
+          try {
+            await answerMessageEvent(object.event_id, object.user_id, object.peer_id, userFacingError(error));
+          } catch (_) {}
+          return;
+        }
+
+        const message = getMessage(payload);
+        if (message && message.peer_id) {
+          try {
+            await sendMessage(message.peer_id, `❌ Ошибка бота: ${userFacingError(error)}`);
+          } catch (sendError) {
+            console.error('Failed to send VK error message:', sendError);
+          }
+        }
+      }
+    })()
+  );
 };

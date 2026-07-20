@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v52-faster-responses';
+const BUILD_VERSION = 'v53-gateway-gpt56-sol';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -194,8 +194,8 @@ function userFacingError(error, fallback = 'Команда временно не
   if (/Supabase|SQL|relation .* does not exist|schema cache|database/i.test(raw)) {
     return 'База данных сейчас недоступна. Передайте владельцу бота.';
   }
-  if (/XAI|x\.ai|Grok|Imagine|quota|billing|api key|unauthorized|authentication|model/i.test(raw)) {
-    return 'Grok сейчас недоступен. Проверьте XAI_API_KEY, модель и лимиты xAI.';
+  if (/XAI|x\.ai|Grok|Imagine|gateway|quota|billing|api key|unauthorized|authentication|model/i.test(raw)) {
+    return 'AI сейчас недоступен. Проверьте AI_GATEWAY_API_KEY, модель и лимиты.';
   }
   if (/VK API error/i.test(raw)) return raw.replace(/^VK API error\s*/i, 'VK: ').slice(0, 220);
   return raw.slice(0, 220);
@@ -953,7 +953,7 @@ function applicationVerdictKeyboard(rowNumber) {
         vkTextButton('↻ Обновить', '/заявки 5'),
       ],
       [
-        vkTextButton('↶ Вернуть на проверку', `/заявка вернуть ${row}`),
+        vkTextButton('↶ Ве��нуть на проверку', `/заявка вернуть ${row}`),
       ],
     ],
   };
@@ -1012,8 +1012,8 @@ function addCleanupId(data, id) {
   return data;
 }
 
-async function sendTracked(peerId, text, data) {
-  const id = await sendMessage(peerId, text);
+async function sendTracked(peerId, text, data, options = {}) {
+  const id = await sendMessage(peerId, text, options);
   addCleanupId(data, id);
   return id;
 }
@@ -1217,7 +1217,7 @@ async function canUseStaffCommands(vkUserId, peerId) {
 async function deleteExpiredSessions() {
   // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
   // всё равно чистит getSession(), поэтому глобальный проход не нужен на
-  // каждое сообщение — троттлим до одного раза в 10 минут, чтобы не делать
+  // каждое сообщение — троттлим до одного раза в 10 минут, чтобы ��е делать
   // лишний round-trip в БД и не задерживать ответ.
   const now = Date.now();
   if (now - lastSessionCleanupAt < 10 * 60 * 1000) return;
@@ -1454,7 +1454,7 @@ async function loadUserForReport(vkUserId) {
 
   const moderator = await isModerator(linked.site_user_id);
   if (!moderator) {
-    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом модератора на сайте.' };
+    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом модерат��ра на сайте.' };
   }
 
   return {
@@ -1741,12 +1741,20 @@ async function startReport(peerId, vkUserId, message) {
 
   await saveSession(peerId, vkUserId, 'work', data);
 
+  const reportCard = await getCardAttachment('reports', peerId);
   await sendTracked(peerId,
-    `🧾 СДАЧА ОТЧЁТА\n\n` +
-    `👤 Аккаунт: ${data.nick}\n\n` +
-    `1/4 Напишите, что сделали за день.\n` +
-    `✖️ Отмена: /от��ена`,
-    data
+    [
+      '🧾 СДАЧА ОТЧЁТА',
+      '━━━━━━━━━━━━━━',
+      `👤 Аккаунт: ${data.nick}`,
+      '',
+      '📍 Шаг 1/4 — Проделанная работа',
+      'Напишите, что сделали за день.',
+      '',
+      '✖️ Отмена: /отмена',
+    ].join('\n'),
+    data,
+    reportCard ? { attachment: reportCard } : {}
   );
 
   await saveSession(peerId, vkUserId, 'work', data);
@@ -1754,12 +1762,17 @@ async function startReport(peerId, vkUserId, message) {
 
 async function startInlineReport(peerId, vkUserId, message, parsed) {
   if (!(await isReportPeer(peerId))) {
-    await sendMessage(peerId, await reportPeerHelpText(peerId));
+    const [helpBody, card] = await Promise.all([
+      reportPeerHelpText(peerId),
+      getCardAttachment('reports', peerId),
+    ]);
+    await sendMessage(peerId, helpBody, card ? { attachment: card } : {});
     return;
   }
 
   if (parsed.error) {
-    await sendMessage(peerId, `⚠️ ${parsed.error}\n\nПример:\n/отчет Проверил жалобы, закрыл 12 тем | ${moscowDateIso()} | Норма | https://example.com`);
+    const card = await getCardAttachment('reports', peerId);
+    await sendMessage(peerId, `⚠️ ${parsed.error}\n\nПример:\n/отчет Проверил жалобы, закрыл 12 тем | ${moscowDateIso()} | Норма | https://example.com`, card ? { attachment: card } : {});
     return;
   }
 
@@ -1829,7 +1842,7 @@ async function handleSession(peerId, vkUserId, message, session) {
     }
 
     data.work = text;
-    await sendTracked(peerId, `2/4 Укажите дату отчёта.\nФормат: ${moscowDateIso()} или 25.06.2026.`, data);
+    await sendTracked(peerId, `📍 Шаг 2/4 — Дата отчёта\nФормат: ${moscowDateIso()} или 25.06.2026.\n\n✖️ Отмена: /отмена`, data);
     await saveSession(peerId, vkUserId, 'date', data);
     return;
   }
@@ -1843,7 +1856,7 @@ async function handleSession(peerId, vkUserId, message, session) {
     }
 
     data.date = date;
-    await sendTracked(peerId, '3/4 Тип сдачи: Норма / Перенорма / Натяг / Герой дня.', data);
+    await sendTracked(peerId, '📍 Шаг 3/4 — Тип сдачи\nВарианты: Норма / Перенорма / Натяг / Герой дня.\n\n✖️ Отмена: /отмена', data);
     await saveSession(peerId, vkUserId, 'quality', data);
     return;
   }
@@ -1857,7 +1870,7 @@ async function handleSession(peerId, vkUserId, message, session) {
     }
 
     data.quality = quality;
-    await sendTracked(peerId, '4/4 Пришлите ссылку на доказательства, фото/скриншот или PDF. Можно несколько вложений одним сообщением.', data);
+    await sendTracked(peerId, '📍 Шаг 4/4 — Доказательства\nПришлите ссылку, фото/скриншот или PDF. Можно несколько вложений одним сообщением.\n\n✖️ Отмена: /отмена', data);
     await saveSession(peerId, vkUserId, 'proof', data);
     return;
   }
@@ -2148,7 +2161,7 @@ async function listReports(peerId, options = {}) {
   const title = options.email
     ? `🧾 ОТЧЁТЫ: ${options.email}`
     : options.status
-      ? `🧾 ОТЧЁТЫ: ${options.status}`
+      ? `🧾 О��ЧЁТЫ: ${options.status}`
       : '🧾 ВСЕ ОТЧЁТЫ';
 
   await sendMessage(peerId, `${title}\n\n${data.map(formatReportRow).join('\n\n────────\n\n')}`);
@@ -3498,31 +3511,34 @@ async function adminLinkCommand(peerId, vkUserId, text) {
   return true;
 }
 
+// ===== AI: Vercel AI Gateway (модель GPT-5.6 Sol) =====
+// Ключ хранится в переменной окружения AI_GATEWAY_API_KEY (не в коде!).
 function xaiApiKey() {
-  return env('XAI_API_KEY') || env('GROK_API_KEY');
+  return env('AI_GATEWAY_API_KEY') || env('XAI_API_KEY') || env('GROK_API_KEY');
 }
 
 function xaiBaseUrl() {
-  return env('XAI_BASE_URL', 'https://api.x.ai/v1').replace(/\/+$/, '');
+  return env('AI_BASE_URL', env('XAI_BASE_URL', 'https://ai-gateway.vercel.sh/v1')).replace(/\/+$/, '');
 }
 
 function xaiTextModel() {
-  return env('XAI_TEXT_MODEL', 'grok-3');
+  return env('AI_TEXT_MODEL', env('XAI_TEXT_MODEL', 'openai/gpt-5.6-sol'));
 }
 
 function xaiSearchModel() {
-  return env('XAI_SEARCH_MODEL', env('XAI_TEXT_MODEL', 'grok-4.3'));
+  return env('AI_SEARCH_MODEL', xaiTextModel());
 }
 
 function xaiVisionModel() {
-  return env('XAI_VISION_MODEL', xaiTextModel());
+  return env('AI_VISION_MODEL', xaiTextModel());
 }
 
 function xaiImageModel() {
-  return env('XAI_IMAGE_MODEL', 'grok-imagine-image-quality');
+  return env('AI_IMAGE_MODEL', env('XAI_IMAGE_MODEL', 'openai/gpt-image-2'));
 }
 
 function aiProviderName() {
+  if (env('AI_GATEWAY_API_KEY')) return 'vercel-ai-gateway';
   if (xaiApiKey()) return 'xai';
   return 'none';
 }
@@ -3735,7 +3751,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
   const roastMode = env('AI_PERSONA', 'roast').toLowerCase();
   const allowProfanity = boolEnv('AI_ALLOW_PROFANITY', true);
   return [
-    'Ты Grok в VK-боте CHEREPOVETS: дерзкий, смешной, быстрый и не душный.',
+    'Ты нейросеть VK-бота CHEREPOVETS (GPT-5.6 Sol): дерзкий, смешной, быстрый и не душный.',
     'Контекст: это сообщество сервера Череповец в игре Black Russia (CRMP, GTA-подобная русская RP-игра). Ты знаешь сленг игры: РП, ДМ, ПГ, МГ, слив, вирт, фракция, госструктура, семья, бизвар.',
     'Пиши по-русски, живо, с реакциями как в чате. Обычно 1-4 коротких строки, если не просят подробно.',
     roastMode === 'roast'
@@ -3826,38 +3842,48 @@ async function askXaiWebSearch(mode, question, context = {}) {
     'Ответ делай коротким: вывод, 2-4 факта, источники если есть.',
   ].join('\n');
 
-  try {
-    const response = await fetch(`${xaiBaseUrl()}/responses`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        instructions: system,
-        input: [
-          { role: 'user', content: `peer_id=${context.peerId || '—'}, vk_id=${context.vkUserId || '—'}\n\nЗапрос с веб-поиском: ${question}` },
-        ],
-        tools: [{ type: 'web_search' }],
-      }),
-    });
+  const userContent = `peer_id=${context.peerId || '—'}, vk_id=${context.vkUserId || '—'}\n\nЗапрос с веб-поиском: ${question}`;
+  const callChat = (withTools) => fetch(`${xaiBaseUrl()}/chat/completions`, {
+    method: 'POST',
+    signal: controller.signal,
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: Number(env('XAI_TEMPERATURE', '0.7')),
+      max_tokens: Number(env('XAI_MAX_TOKENS', '900')),
+      ...(withTools ? { tools: [{ type: 'web_search' }] } : {}),
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
 
-    const data = await response.json().catch(() => null);
+  try {
+    // Сначала пробуем со встроенным веб-поиском модели; если Gateway/модель
+    // не принимает такой tool — повторяем без него.
+    let response = await callChat(true);
+    let data = await response.json().catch(() => null);
+    if (!response.ok) {
+      response = await callChat(false);
+      data = await response.json().catch(() => null);
+    }
     if (!response.ok) {
       const details = data?.error?.message || data?.message || `HTTP ${response.status}`;
-      return `Grok Web Search временно недоступен: ${userFacingError(details)}`;
+      return `Веб-поиск временно недоступен: ${userFacingError(details)}`;
     }
 
-    const answer = compactAiAnswer(xaiResponsesText(data)) || 'Не нашёл нормальный ответ.';
+    const answer = compactAiAnswer(xaiTextFromResponse(data)) || 'Не нашёл нормальный ответ.';
     const citations = xaiCitationLines(data);
     return citations.length
       ? `${answer}\n\nИсточники:\n${citations.join('\n')}`
       : answer;
   } catch (error) {
-    if (error.name === 'AbortError') return 'Grok Web Search не успел ответить. Сформулируй запрос короче.';
-    return `Grok Web Search временно недоступен: ${userFacingError(error)}`;
+    if (error.name === 'AbortError') return 'Веб-поиск не успел ответить. Сформулируй запрос короче.';
+    return `Веб-поиск временно недоступен: ${userFacingError(error)}`;
   } finally {
     clearTimeout(timeout);
   }
@@ -3921,7 +3947,7 @@ async function askAi(mode, question, context = {}) {
     ? shouldUseWebSearch(question)
       ? await askXaiWebSearch(mode, question, context)
       : await askXaiText(mode, question, context)
-    : 'Grok не подключён. Нужна переменная XAI_API_KEY.';
+    : 'AI не подключён. Нужна переменная AI_GATEWAY_API_KEY.';
   await addAiMessage(context.vkUserId, context.peerId, 'assistant', answer).catch(() => null);
   return answer;
 }
@@ -4053,7 +4079,7 @@ function imageGenerationError(error) {
 
 async function generateXaiImage(prompt) {
   const apiKey = xaiApiKey();
-  if (!apiKey) throw new Error('XAI_API_KEY is not configured');
+  if (!apiKey) throw new Error('AI_GATEWAY_API_KEY is not configured');
   const body = {
     model: xaiImageModel(),
     prompt: `Сгенерируй изображение. Без текста на картинке, если это не просят явно.\n\nОписание: ${prompt}`,
@@ -4072,7 +4098,7 @@ async function generateXaiImage(prompt) {
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error?.message || data?.message || `xAI HTTP ${response.status}`);
+  if (!response.ok) throw new Error(data?.error?.message || data?.message || `AI HTTP ${response.status}`);
   const item = Array.isArray(data?.data) ? data.data[0] : null;
   const b64 = item?.b64_json || item?.base64 || item?.image_base64;
   if (b64) {
@@ -4083,9 +4109,9 @@ async function generateXaiImage(prompt) {
     };
   }
   const url = item?.url || data?.url || data?.image?.url;
-  if (!url) throw new Error('xAI не вернул изображение. Проверь XAI_IMAGE_MODEL и доступ к Imagine API.');
+  if (!url) throw new Error('AI не вернул изображение. Проверь AI_IMAGE_MODEL и доступ к Gateway.');
   const imageResponse = await fetch(url);
-  if (!imageResponse.ok) throw new Error(`xAI image download HTTP ${imageResponse.status}`);
+  if (!imageResponse.ok) throw new Error(`AI image download HTTP ${imageResponse.status}`);
   const arrayBuffer = await imageResponse.arrayBuffer();
   return {
     buffer: Buffer.from(arrayBuffer),
@@ -4108,7 +4134,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
       return true;
     }
     if (!xaiApiKey()) {
-      await sendMessage(peerId, '⚠️ Grok не подключён. Нужна переменная XAI_API_KEY.');
+      await sendMessage(peerId, '⚠️ AI не подключён. Нужна переменная AI_GATEWAY_API_KEY.');
       return true;
     }
 
@@ -4872,7 +4898,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
     '━━━━━━━━━━━━━━━━',
     '• /group type staff — сделать текущую беседу staff-группой для заявок',
     '• /group type candidates — беседа для принятых кандидатов',
-    '• /group type reports или /группа тип отчеты — сделать текущую беседу группой отчётов',
+    '• /group type reports или /группа тип отчеты — сделать текущую беседу г��уппой отчётов',
     '• /group type ai или /группа тип ии — разр��шить AI-общение в этой беседе',
     '• /group info — текущая привязка',
     '• /groups — список привязанных групп',
@@ -5088,7 +5114,7 @@ function reportDecisionCardText(report, result) {
   return [
     approved ? '✅ ОТЧЁТ ОДОБРЕН' : '❌ ОТЧЁТ НЕ ЗАСЧИТАН',
     '━━━━━━━━━━━━━━━━',
-    `👤 Модератор: ${escapeLine(p.nick || p.email || '—')}`,
+    `👤 ��одератор: ${escapeLine(p.nick || p.email || '—')}`,
     `📅 Дата: ${escapeLine(p.date || '—')}`,
     `🧾 Работа: ${escapeLine(p.work || '—')}`,
     `📌 Вердикт: ${result.status}`,
@@ -6600,7 +6626,7 @@ async function aiTestCommand(peerId, vkUserId) {
 
   if (xaiApiKey()) {
     const answer = await askXaiText('ai', 'Ответь одним коротким предложением: Grok подключён?', { peerId, vkUserId });
-    add('Grok text', !/недоступен|ошибка/i.test(answer), escapeLine(answer));
+    add('Grok text', !/недоступен|ошиб��а/i.test(answer), escapeLine(answer));
   }
 
   await sendMessage(peerId, [

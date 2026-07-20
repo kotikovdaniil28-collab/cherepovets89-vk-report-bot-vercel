@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v55-link-group-welcome';
+const BUILD_VERSION = 'v56-agentrouter';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -1456,7 +1456,7 @@ async function loadUserForReport(vkUserId) {
 
   const moderator = await isModerator(linked.site_user_id);
   if (!moderator) {
-    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только п��льзовате��и со статусом модерат��ра на сайте.' };
+    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут то��ько п��льзовате��и со статусом модерат��ра на сайте.' };
   }
 
   return {
@@ -1498,7 +1498,7 @@ async function reviewReportWithAi(sessionData, proofs) {
     '}',
     '',
     'accept только если отчёт выглядит заполненным и доказательства есть.',
-    'reject только если отчёт явно пустой/мусорный/без доказательств. Иначе review.',
+    'reject только если отчёт явно пу��той/мусорный/без доказательств. Иначе review.',
     'Не начисляй XP.',
   ].filter(Boolean).join('\n');
 
@@ -3072,7 +3072,7 @@ async function fillStaffSheetFromApplication(rowNumber) {
   if (!url) throw new Error('google sheet integration is not configured');
 
   const row = Number(rowNumber);
-  if (!Number.isFinite(row) || row < 2) throw new Error('Нужно указать номер строки заявки.');
+  if (!Number.isFinite(row) || row < 2) throw new Error('Нужно указат�� номер строки заявки.');
 
   const u = new URL(url);
   u.searchParams.set('mode', 'application_to_staff');
@@ -3441,7 +3441,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     }));
     staffLine = staffResult.ok
       ? `📋 Внесён в Discord состав: строка ${escapeLine(staffResult.rowNumber || '—')}`
-      : `📋 Discord состав: ${escapeLine(staffResult.error || 'не удалось заполнить')}`;
+      : `📋 Discord состав: ${escapeLine(staffResult.error || 'не у��алось заполнить')}`;
 
     const candidateResult = await addAcceptedCandidateToGroup(result).catch(error => ({
       ok: false,
@@ -3513,44 +3513,51 @@ async function adminLinkCommand(peerId, vkUserId, text) {
   return true;
 }
 
-// ===== AI: Vercel AI Gateway (модель GPT-5.6 Sol) =====
-// Ключ хранится в переменной окружения AI_GATEWAY_API_KEY (не в коде!).
-// Когда задан AI_GATEWAY_API_KEY, старые переменные XAI_* полностью игнорируются,
-// чтобы grok-модели и api.x.ai не перебивали настройки Gateway.
+// ===== AI провайдеры =====
+// Приоритет: AgentRouter (AGENTROUTER_API_KEY) → Vercel AI Gateway (AI_GATEWAY_API_KEY) → xAI (XAI_API_KEY).
+// Ключи хранятся только в переменных окружения (не в коде!).
+function usingAgentRouter() {
+  return !!env('AGENTROUTER_API_KEY');
+}
+
 function usingGateway() {
-  return !!env('AI_GATEWAY_API_KEY');
+  return !usingAgentRouter() && !!env('AI_GATEWAY_API_KEY');
 }
 
 function xaiApiKey() {
-  return env('AI_GATEWAY_API_KEY') || env('XAI_API_KEY') || env('GROK_API_KEY');
+  return env('AGENTROUTER_API_KEY') || env('AI_GATEWAY_API_KEY') || env('XAI_API_KEY') || env('GROK_API_KEY');
 }
 
 function xaiBaseUrl() {
+  if (usingAgentRouter()) return env('AI_BASE_URL', 'https://agentrouter.org/v1').replace(/\/+$/, '');
   if (usingGateway()) return env('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1').replace(/\/+$/, '');
   return env('XAI_BASE_URL', 'https://api.x.ai/v1').replace(/\/+$/, '');
 }
 
 function xaiTextModel() {
+  if (usingAgentRouter()) return env('AI_TEXT_MODEL', 'gpt-5.5');
   if (usingGateway()) return env('AI_TEXT_MODEL', 'openai/gpt-5.6-sol');
   return env('XAI_TEXT_MODEL', 'grok-3');
 }
 
 function xaiSearchModel() {
-  if (usingGateway()) return env('AI_SEARCH_MODEL', xaiTextModel());
+  if (usingAgentRouter() || usingGateway()) return env('AI_SEARCH_MODEL', xaiTextModel());
   return env('XAI_SEARCH_MODEL', xaiTextModel());
 }
 
 function xaiVisionModel() {
-  if (usingGateway()) return env('AI_VISION_MODEL', xaiTextModel());
+  if (usingAgentRouter() || usingGateway()) return env('AI_VISION_MODEL', xaiTextModel());
   return env('XAI_VISION_MODEL', xaiTextModel());
 }
 
 function xaiImageModel() {
+  if (usingAgentRouter()) return env('AI_IMAGE_MODEL', 'gpt-image-1');
   if (usingGateway()) return env('AI_IMAGE_MODEL', 'openai/gpt-image-2');
   return env('XAI_IMAGE_MODEL', 'grok-imagine-image-quality');
 }
 
 function aiProviderName() {
+  if (usingAgentRouter()) return 'agentrouter';
   if (usingGateway()) return 'vercel-ai-gateway';
   if (xaiApiKey()) return 'xai';
   return 'none';
@@ -3757,7 +3764,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
-    vision: 'Опиши изображение и ответь на вопрос пользователя. Не делай неподтверждённых обвинений по картинке.',
+    vision: 'Опиши изображение и ответь на вопрос пользователя. Не дел��й неподтверждённых обвинений по картинке.',
   }[mode] || 'Ответь как помощник.';
 
   const verified = verifiedAiFactsForUser(context.vkUserId);
@@ -4744,7 +4751,7 @@ function groupRulesText(groupType) {
       '🧠 ПРАВИЛА AI-БЕСЕДЫ',
       '— можно общаться с ботом обычным текстом',
       '— для картинок: /картинка описание',
-      '— для памяти: /память, /забыть, «запомни: ...»',
+      '— для па��яти: /память, /забыть, «запомни: ...»',
       '— AI может ошибаться, важные решения проверяет staff',
       '',
       ...common,
@@ -5732,7 +5739,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
 
   if (actionType === 'ban' && boolEnv('VK_AUTO_KICK_ON_BAN', true)) {
     const result = await kickVkUserFromChat(peerId, targetVkId);
-    vkEffect = result.ok ? '✅ VK: пользователь удалён из беседы' : `⚠️ VK-бан не применён: ${escapeLine(result.message)}`;
+    vkEffect = result.ok ? '✅ VK: пользователь удалён из беседы' : `⚠️ VK-бан не ��рименён: ${escapeLine(result.message)}`;
   }
 
   let dbEffect = '✅ БД: наказание записано';
@@ -5933,7 +5940,7 @@ function actionUsageText(action = 'mute') {
     ban: [
       '⚠️ Формат бана',
       '━━━━━━━━━━━━━━━━',
-      '• /бан @id123 7д причина',
+      '• /б��н @id123 7д причина',
       '• ответом на сообщение: /бан 7д причина',
       '',
       'Алиасы: /бан, /забанить, /кик, /ban',
@@ -6646,7 +6653,7 @@ async function aiTestCommand(peerId, vkUserId) {
   const add = (name, ok, detail = '') => checks.push(`${ok ? '✅' : '⚠️'} ${name}${detail ? `: ${detail}` : ''}`);
   add('Build', true, BUILD_VERSION);
   add('Провайдер', aiProviderName() !== 'none', aiProviderName());
-  add('AI ключ', !!xaiApiKey(), usingGateway() ? 'AI_GATEWAY_API_KEY' : (xaiApiKey() ? 'XAI_API_KEY (старый)' : 'не задан'));
+  add('AI ключ', !!xaiApiKey(), usingAgentRouter() ? 'AGENTROUTER_API_KEY' : (usingGateway() ? 'AI_GATEWAY_API_KEY' : (xaiApiKey() ? 'XAI_API_KEY (старый)' : 'не задан')));
   add('Text model', !!xaiTextModel(), xaiTextModel());
   add('Web search', boolEnv('XAI_WEB_SEARCH_ENABLED', true), boolEnv('XAI_WEB_SEARCH_ENABLED', true) ? xaiSearchModel() : 'off');
   add('Vision model', !!xaiVisionModel(), xaiVisionModel());

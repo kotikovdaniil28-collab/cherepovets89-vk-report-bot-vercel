@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v56-agentrouter';
+const BUILD_VERSION = 'v57-reasoning-tokens';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -96,7 +96,7 @@ const DISCORD_RULES = {
   '1.6': ['Общая информация', 'В зависимости от тяжести нарушения возможно дополнительное внутриигровое наказание.', '—'],
   '1.7': ['Общая информация', 'Руководство проекта, руководитель модераторов, заместители и главный администратор могут выдавать наказания на своё усмотрение, если действия вредят проекту.', '—'],
   '1.8': ['Общая информация', 'Правила могут распространяться на личные сообщения, если действия вредят проекту.', '—'],
-  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко���фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
+  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко�����фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.2': ['Общие правила', 'Трансфер Discord-валюты между серверами проекта.', 'Перманентная блокировка / Обнуление'],
   '2.3': ['Общие правила', 'Реклама любого направления, кроме официальных ресурсов проекта. Реклама других игровых проектов и вещей за реальные средства — глобальная блокировка.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.4': ['Общие правила', 'Возрастной, интимный, насильственный или шок-контент.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
@@ -1498,7 +1498,7 @@ async function reviewReportWithAi(sessionData, proofs) {
     '}',
     '',
     'accept только если отчёт выглядит заполненным и доказательства есть.',
-    'reject только если отчёт явно пу��той/мусорный/без доказательств. Иначе review.',
+    'reject только если отчёт явно пу����той/мусорный/без доказательств. Иначе review.',
     'Не начисляй XP.',
   ].filter(Boolean).join('\n');
 
@@ -3441,7 +3441,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     }));
     staffLine = staffResult.ok
       ? `📋 Внесён в Discord состав: строка ${escapeLine(staffResult.rowNumber || '—')}`
-      : `📋 Discord состав: ${escapeLine(staffResult.error || 'не у��алось заполнить')}`;
+      : `📋 Discord состав: ${escapeLine(staffResult.error || '��е у��алось заполнить')}`;
 
     const candidateResult = await addAcceptedCandidateToGroup(result).catch(error => ({
       ok: false,
@@ -3722,11 +3722,26 @@ async function aiMemoryCommand(peerId, vkUserId) {
 
 function xaiTextFromResponse(data) {
   const message = data?.choices?.[0]?.message;
-  if (typeof message?.content === 'string') return message.content;
+  if (typeof message?.content === 'string' && message.content.trim()) return message.content;
   if (Array.isArray(message?.content)) {
-    return message.content.map(part => part?.text || part?.content || '').filter(Boolean).join('\n');
+    const joined = message.content.map(part => part?.text || part?.content || '').filter(Boolean).join('\n');
+    if (joined.trim()) return joined;
   }
+  // Рассуждающие модели (gpt-5.x) могут вернуть текст в reasoning-полях,
+  // если основной content оказался пустым.
+  if (typeof message?.reasoning_content === 'string' && message.reasoning_content.trim()) return message.reasoning_content;
+  if (typeof message?.reasoning === 'string' && message.reasoning.trim()) return message.reasoning;
   return data?.output_text || data?.text || '';
+}
+
+// Параметры лимита токенов: рассуждающие модели (gpt-5.x) тратят токены на
+// «размышления», поэтому лимит нужен больше и через max_completion_tokens.
+function aiTokenParams(defaultTokens = 900) {
+  const n = Number(env('XAI_MAX_TOKENS', String(defaultTokens))) || defaultTokens;
+  if (usingAgentRouter() || usingGateway()) {
+    return { max_completion_tokens: Math.max(n, 2000) };
+  }
+  return { max_tokens: n };
 }
 
 function xaiResponsesText(data) {
@@ -3821,7 +3836,7 @@ async function askXaiText(mode, question, context = {}) {
       body: JSON.stringify({
         model,
         temperature: Number(env('XAI_TEMPERATURE', '0.7')),
-        max_tokens: Number(env('XAI_MAX_TOKENS', '900')),
+        ...aiTokenParams(),
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: `peer_id=${context.peerId || '—'}, vk_id=${context.vkUserId || '—'}\n\nЗапрос: ${question}` },
@@ -3873,7 +3888,7 @@ async function askXaiWebSearch(mode, question, context = {}) {
     body: JSON.stringify({
       model,
       temperature: Number(env('XAI_TEMPERATURE', '0.7')),
-      max_tokens: Number(env('XAI_MAX_TOKENS', '900')),
+      ...aiTokenParams(),
       ...(withTools ? { tools: [{ type: 'web_search' }] } : {}),
       messages: [
         { role: 'system', content: system },
@@ -3933,7 +3948,7 @@ async function askXaiVision(question, imageUrls, context = {}) {
       body: JSON.stringify({
         model,
         temperature: Number(env('XAI_TEMPERATURE', '0.55')),
-        max_tokens: Number(env('XAI_MAX_TOKENS', '900')),
+        ...aiTokenParams(),
         messages: [
           { role: 'system', content: buildAiSystemPrompt('vision', context, memory, history, ownerInstruction) },
           {
@@ -4550,7 +4565,7 @@ async function buildMemePromptFromChat(peerId, vkUserId, chatLines) {
     '- demotivator: чёрная рамка, большое слово, короткая подпись;',
     '- object-labeling: предметы подписаны ролями из ситуации.',
     '',
-    'Стиль юмора:',
+    'Стиль ��мора:',
     '- русский VK/Discord shitpost, сухой сарказм, абсурд, "модераторский быт";',
     '- можно немного жёстко и с матом, но без травли конкретного человека;',
     '- не верь непроверенным обвинениям из чата, шути только над ситуацией.',
@@ -4743,7 +4758,7 @@ function groupRulesText(groupType) {
       '— сюда отправляются только отчёты и разрешённые команды',
       '— отчёт: работа, дата, тип сдачи, доказательства',
       '— лишние сообщения бот может удалить',
-      '— исправления сдаём тем же форматом, без споров в чате',
+      '— исправления с��аём тем же форматом, без споров в чате',
       '',
       ...common,
     ],

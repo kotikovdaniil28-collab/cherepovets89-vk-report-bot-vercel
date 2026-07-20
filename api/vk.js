@@ -25,7 +25,7 @@ const BAN_USAGE_RE = /^\/(?:бан|ban|забанить|кик)(?:\s+[\s\S]*)?$/
 const MUTE_REPLY_RE = /^\/(?:мут|мьют|mute|замутить|молчанка)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 const BAN_REPLY_RE = /^\/(?:бан|ban|забанить|кик)\s+(\S+)(?:\s+([\s\S]+))?$/i;
 
-const BUILD_VERSION = 'v57-reasoning-tokens';
+const BUILD_VERSION = 'v58-ai-debug';
 const REPORT_STATUS_XP = Object.freeze({
   'Норма': 15,
   'Перенорма': 30,
@@ -104,7 +104,7 @@ const DISCORD_RULES = {
   '2.6': ['Общие правила', 'Попытки обмана пользователя или введения в заблуждение/замешательство.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
   '2.7': ['Общие правила', 'Споры на тему политики и религии.', 'Устное предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.8': ['Общие правила', 'Прямое или косвенное обсуждение продажи, передачи или обмена чего-либо за реальные деньги.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
-  '2.9': ['Общие правила', 'Использование уязвимостей правил, багов систем и плагинов, дающих преимущества. Очевидная вина не снимается из-за “недостаточно расписанного” пункта.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка / Обнуление'],
+  '2.9': ['Общие правила', 'Использование уязвимостей правил, багов систем и плагинов, дающих преимущества. Очевидная вина не снимается из-за “недостаточно расписанно��о” пункта.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка / Обнуление'],
   '2.10': ['Общие правила', 'Вымогательство и попрошайничество в Discord-серверах проекта.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '2.11': ['Общие правила', 'Деструктивные действия ��ротив проекта: неконструктивная критика, призывы покинуть проект, помеха развитию и другой негатив.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.12': ['Общие правила', 'Обход выданных или находящихся на рассмотрении наказаний.', 'Перманентная блокировка'],
@@ -116,7 +116,7 @@ const DISCORD_RULES = {
   '2.18': ['Общие правила', 'Провокация или побуждение пользователей к нарушению правил проекта.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.19': ['Общие правила', 'Прямые или косвенные угрозы пользователям.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.20': ['Общие правила', 'Многократное нарушение правил Discord-сервера: более пяти блокировок чатов или трёх строгих предупреждений за 7 дней.', 'Бан 7-15 дней / Перманентная блокировка'],
-  '2.21': ['Общие правила', 'Создание приватных комнат с названиями, нарушающими правила Discord-серверов и проекта.', 'Бан создания приватных комнат 3-7 дней'],
+  '2.21': ['Общие правила', 'Создание приватных комнат с назв��ни��ми, нарушающими правила Discord-серверов и проекта.', 'Бан создания приватных комнат 3-7 дней'],
   '3.1': ['Текстовые каналы', 'Флуд, спам и сообщения не по ��еме в каналах с определённым назначением.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '3.2': ['Текстовые каналы', 'Упоминание пользователей в текстовых каналах без сопровождающего сообщения.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '3.3': ['Текстовые каналы', 'Чрезмерное использование верхнего регистра (CapsLock).', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
@@ -126,7 +126,7 @@ const DISCORD_RULES = {
   '4.2': ['Голосовые каналы', 'Использование сторонних программ для воспроизведения звуков через микрофон.', 'Устное предупреждение / Мут 90 минут'],
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
-  '5.1': ['Учётные записи', 'Копирование чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
+  '5.1': ['Учётные записи', 'Копировани�� чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
   '5.2': ['Учётные записи', 'Оско��би�����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
@@ -1498,7 +1498,7 @@ async function reviewReportWithAi(sessionData, proofs) {
     '}',
     '',
     'accept только если отчёт выглядит заполненным и доказательства есть.',
-    'reject только если отчёт явно пу����той/мусорный/без доказательств. Иначе review.',
+    'reject только если отчё�� явно пу����той/мусорный/без доказательств. Иначе review.',
     'Не начисляй XP.',
   ].filter(Boolean).join('\n');
 
@@ -3162,7 +3162,7 @@ function firstNonEmpty(named, patterns) {
 }
 
 function applicationCandidateSummary(named, rowNumber, verdict) {
-  const nick = firstNonEmpty(named, [/nick|ник|game|игров/]);
+  const nick = firstNonEmpty(named, [/nick|ник|game|��гро��/]);
   const nameAge = firstNonEmpty(named, [/имя|возраст|name|age/]);
   const email = firstNonEmpty(named, [/почт|email|mail/]);
   const vk = firstNonEmpty(named, [/вконтакте|vk|вк/]);
@@ -3716,22 +3716,37 @@ async function aiMemoryCommand(peerId, vkUserId) {
     aiMemoryText(memory, history).slice(0, 2500),
     '',
     'Очистить: /забыть',
-    'Запомнить факт: запомни: текст',
+    'Запомнить факт: за��омни: текст',
   ].join('\n'));
 }
 
 function xaiTextFromResponse(data) {
-  const message = data?.choices?.[0]?.message;
-  if (typeof message?.content === 'string' && message.content.trim()) return message.content;
+  const choice = data?.choices?.[0];
+  const message = choice?.message;
+  if (typeof message?.content === 'string' && stripThinking(message.content)) return stripThinking(message.content);
   if (Array.isArray(message?.content)) {
     const joined = message.content.map(part => part?.text || part?.content || '').filter(Boolean).join('\n');
-    if (joined.trim()) return joined;
+    if (stripThinking(joined)) return stripThinking(joined);
   }
+  // Старый completions-формат: текст лежит прямо в choices[0].text
+  if (typeof choice?.text === 'string' && stripThinking(choice.text)) return stripThinking(choice.text);
   // Рассуждающие модели (gpt-5.x) могут вернуть текст в reasoning-полях,
   // если основной content оказался пустым.
-  if (typeof message?.reasoning_content === 'string' && message.reasoning_content.trim()) return message.reasoning_content;
-  if (typeof message?.reasoning === 'string' && message.reasoning.trim()) return message.reasoning;
-  return data?.output_text || data?.text || '';
+  if (typeof message?.reasoning_content === 'string' && message.reasoning_content.trim()) return message.reasoning_content.trim();
+  if (typeof message?.reasoning === 'string' && message.reasoning.trim()) return message.reasoning.trim();
+  return stripThinking(data?.output_text || data?.text || '');
+}
+
+// Краткая диагностика ответа AI для случая, когда текст извлечь не удалось.
+function aiEmptyAnswerDebug(data) {
+  try {
+    const choice = data?.choices?.[0];
+    const finish = choice?.finish_reason || choice?.finishReason || '—';
+    const raw = JSON.stringify(choice?.message ?? data ?? {}).slice(0, 350);
+    return `finish=${finish}, ответ: ${raw}`;
+  } catch {
+    return 'не удалось разобрать ответ';
+  }
 }
 
 // Параметры лимита токенов: рассуждающие модели (gpt-5.x) тратят токены на
@@ -3739,9 +3754,19 @@ function xaiTextFromResponse(data) {
 function aiTokenParams(defaultTokens = 900) {
   const n = Number(env('XAI_MAX_TOKENS', String(defaultTokens))) || defaultTokens;
   if (usingAgentRouter() || usingGateway()) {
-    return { max_completion_tokens: Math.max(n, 2000) };
+    // reasoning_effort: low — чтобы gpt-5.x не сжигал все токены на размышления
+    return { max_completion_tokens: Math.max(n, 4000), reasoning_effort: env('AI_REASONING_EFFORT', 'low') };
   }
   return { max_tokens: n };
+}
+
+// Убирает из ответа блоки размышлений вида <think>...</think>
+function stripThinking(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^<think>[\s\S]*$/gi, '')
+    .trim();
 }
 
 function xaiResponsesText(data) {
@@ -3775,7 +3800,7 @@ function shouldUseWebSearch(question) {
 function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = '') {
   const modeHint = {
     ai: 'Ответь как собеседник и помощник.',
-    advice: 'Дай краткий совет модератору: что проверить и что сделать.',
+    advice: 'Дай краткий совет модератору: ��то проверить и что сделать.',
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
@@ -3818,7 +3843,7 @@ async function askXaiText(mode, question, context = {}) {
 
   const model = xaiTextModel();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '18000')) || 18000);
+  const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '40000')) || 40000);
 
   const memory = await loadAiMemory(context.vkUserId).catch(() => null);
   const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '12')) || 12).catch(() => []);
@@ -3849,7 +3874,10 @@ async function askXaiText(mode, question, context = {}) {
       const details = data?.error?.message || data?.message || `HTTP ${response.status}`;
       return `AI-помощник временно недоступен: ${userFacingError(details)}`;
     }
-    return compactAiAnswer(xaiTextFromResponse(data)) || 'Не нашёл короткий ответ.';
+    const answer = compactAiAnswer(xaiTextFromResponse(data));
+    if (answer) return answer;
+    console.log('[v0] AI empty answer:', aiEmptyAnswerDebug(data));
+    return `Не нашёл ответ (${aiEmptyAnswerDebug(data)})`;
   } catch (error) {
     if (error.name === 'AbortError') return 'AI-помощник не успел ответить. Сократи запрос.';
     return `AI-помощник временно недоступен: ${userFacingError(error)}`;
@@ -3932,7 +3960,7 @@ async function askXaiVision(question, imageUrls, context = {}) {
 
   const model = xaiVisionModel();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '18000')) || 18000);
+  const timeout = setTimeout(() => controller.abort(), Number(env('XAI_TIMEOUT_MS', '40000')) || 40000);
   const memory = await loadAiMemory(context.vkUserId).catch(() => null);
   const history = await loadAiHistory(context.vkUserId, Number(env('AI_HISTORY_LIMIT', '12')) || 12).catch(() => []);
   const ownerInstruction = await loadOwnerAiInstruction().catch(() => '');
@@ -4189,7 +4217,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
       '🎨 Готово',
       `Запрос: ${escapeLine(userPrompt)}${brMatch ? ' · стиль Black Russia' : ''}`,
       !attachment && imageUrl ? `Ссылка: ${imageUrl}` : '',
-      !attachment && !imageUrl ? 'VK не принял вложение, а bucket для ссылок не настроен.' : '',
+      !attachment && !imageUrl ? 'VK не принял вложение, �� bucket для ссылок не настроен.' : '',
     ].filter(Boolean).join('\n'), attachment ? { attachment } : {});
   } catch (error) {
     await sendMessage(peerId, `⚠️ Не смог сгенерировать картинку: ${escapeLine(imageGenerationError(error))}`);
@@ -4321,7 +4349,6 @@ async function handleAiCommand(peerId, vkUserId, text) {
     return true;
   }
 
-  const typing = await sendMessage(peerId, '🧠 Думаю...');
   const answer = await askAi(mode, question, { peerId, vkUserId });
   const title = {
     advice: '🧭 Совет',
@@ -4330,7 +4357,6 @@ async function handleAiCommand(peerId, vkUserId, text) {
     template: '📝 Шаблон',
     ai: '💬 Ответ',
   }[mode] || '💬 Ответ';
-  if (typing && cleanupEnabled()) await deleteMessagesBestEffort(peerId, [typing]);
   await sendLongMessage(peerId, `${title}
 ${compactAiAnswer(answer)}`);
   return true;
@@ -4740,7 +4766,7 @@ function groupRulesText(groupType) {
       '— обсуждаем заявки, отчёты, наказания и рабочие вопросы',
       '— решения по кандидатам фиксируем через команды бота',
       '— без флуда, личных конфликтов и публичных разборок',
-      '— доказательства и ссылки прикладываем сразу',
+      '— доказательст��а и ссылки прикладываем сразу',
       '',
       ...common,
     ],
@@ -4781,7 +4807,7 @@ function groupRulesText(groupType) {
       '— обсуждение рабочих моментов и общение между собой',
       '',
       '⚖️ Правила',
-      '— уважаем друг друга: без конфликтов и переходов на личности',
+      '— уважаем друг друга: без конфликтов и пер��ходов на личности',
       '— пишем по делу, флуд сводим к минимуму',
       '— информация из беседы не выносится за её пределы',
       '— срочные вопросы помечаем словом «СРОЧНО» и тегаем нужного человека',
@@ -5169,7 +5195,7 @@ async function decideReport(reportId, options = {}) {
 
 function reportDecisionCardText(report, result) {
   const p = reportPayloadFromRow(report || {});
-  const approved = result.status !== 'Не засчитано';
+  const approved = result.status !== 'Не за��читано';
   return [
     approved ? '✅ ОТЧЁТ ОДОБРЕН' : '❌ ОТЧЁТ НЕ ЗАСЧИТАН',
     '━━━━━━━━━━━━━━━━',
@@ -5803,7 +5829,7 @@ async function listModerationActions(peerId, actorVkId, targetInput) {
   }
   const targetVkId = await resolveVkTarget(targetInput);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /наказания @id123');
+    await sendMessage(peerId, '⚠️ Не понял пользоват��ля. Пример: /наказания @id123');
     return;
   }
   const { data, error } = await getSupabase()
@@ -6885,7 +6911,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '',
       '🧠 Нейросеть',
       '• грок, <вопрос> — спросить AI',
-      '• /картинка <описание> — сгенерировать картинку',
+      '• /картинка <описание> — сгенерировать карт��нку',
       '• /бр <сцена> — арт в стиле Black Russia',
       '• /совет · /разбор · /vision · /память',
       '',

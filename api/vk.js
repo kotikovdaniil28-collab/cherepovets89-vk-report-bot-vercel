@@ -96,7 +96,7 @@ const DISCORD_RULES = {
   '1.6': ['Общая информация', 'В зависимости от тяжести нарушения возможно дополнительное внутриигровое наказание.', '—'],
   '1.7': ['Общая информация', 'Руководство проекта, руководитель модераторов, заместители и главный администратор могут выдавать наказания на своё усмотрение, если действия вредят проекту.', '—'],
   '1.8': ['Общая информация', 'Правила могут распространяться на личные сообщения, если действия вредят проекту.', '—'],
-  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига ко�������фликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
+  '2.1': ['Общие правила', 'Неадекватное поведение, завуалированные/саркастичные сообщения и действия для оскорбления, провокации или розжига конфликта.', 'Устное предупреждение / Предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.2': ['Общие правила', 'Трансфер Discord-валюты между серверами проекта.', 'Перманентная блокировка / Обнуление'],
   '2.3': ['Общие правила', 'Реклама любого направления, кроме официальных ресурсов проекта. Реклама других игровых проектов и вещей за реальные средства — глобальная блокировка.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.4': ['Общие правила', 'Возрастной, интимный, насильственный или шок-контент.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
@@ -104,9 +104,9 @@ const DISCORD_RULES = {
   '2.6': ['Общие правила', 'Попытки обмана пользователя или введения в заблуждение/замешательство.', 'Мут 90 минут / Бан 7-15 дней / Перманентная блокировка'],
   '2.7': ['Общие правила', 'Споры на тему политики и религии.', 'Устное предупреждение / Мут 90 минут / Бан 7-15 дней'],
   '2.8': ['Общие правила', 'Прямое или косвенное обсуждение продажи, передачи или обмена чего-либо за реальные деньги.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
-  '2.9': ['Общие правила', 'Использование уязвимостей правил, багов систем и плагинов, дающих преимущества. Очевидная вина не снимается из-за “недостаточно расписанно��о” пункта.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка / Обнуление'],
+  '2.9': ['Общие правила', 'Использование уязвимостей правил, багов систем и плагинов, дающих преимущества. Очевидная вина не снимается из-за “недостаточно расписанного” пункта.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка / Обнуление'],
   '2.10': ['Общие правила', 'Вымогательство и попрошайничество в Discord-серверах проекта.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
-  '2.11': ['Общие правила', 'Деструктивные действия ��ротив проекта: неконструктивная критика, призывы покинуть проект, помеха развитию и другой негатив.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
+  '2.11': ['Общие правила', 'Деструктивные действия против проекта: неконструктивная критика, призывы покинуть проект, помеха развитию и другой негатив.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
   '2.12': ['Общие правила', 'Обход выданных или находящихся на рассмотрении наказаний.', 'Перманентная блокировка'],
   '2.13': ['Общие правила', 'Прямые или косвенные упоминания либо оскорбления родных пользователя.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.14': ['Общие правила', 'Распространение сторонних файлов в любом формате.', 'Бан 7-15 дней / Перманентная блокировка / Глобальная блокировка'],
@@ -116,8 +116,8 @@ const DISCORD_RULES = {
   '2.18': ['Общие правила', 'Провокация или побуждение пользователей к нарушению правил проекта.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.19': ['Общие правила', 'Прямые или косвенные угрозы пользователям.', 'Мут 90 минут / Бан 7-15 дней'],
   '2.20': ['Общие правила', 'Многократное нарушение правил Discord-сервера: более пяти блокировок чатов или трёх строгих предупреждений за 7 дней.', 'Бан 7-15 дней / Перманентная блокировка'],
-  '2.21': ['Общие правила', 'Создание приватных комнат с назв��ни��ми, нарушающими правила Discord-серверов и проекта.', 'Бан создания приватных комнат 3-7 дней'],
-  '3.1': ['Текстовые каналы', 'Флуд, спам и сообщения не по ��еме в каналах с определённым назначением.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
+  '2.21': ['Общие правила', 'Создание приватных комнат с названиями, нарушающими правила Discord-серверов и проекта.', 'Бан создания приватных комнат 3-7 дней'],
+  '3.1': ['Текстовые каналы', 'Флуд, спам и сообщения не по теме в каналах с определённым назначением.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '3.2': ['Текстовые каналы', 'Упоминание пользователей в текстовых каналах без сопровождающего сообщения.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '3.3': ['Текстовые каналы', 'Чрезмерное использование верхнего регистра (CapsLock).', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
   '3.4': ['Текстовые каналы', 'Злоупотребление знаками препинания и прочими символами.', 'Устное предупреждение / Предупреждение / Мут 90 минут'],
@@ -126,8 +126,8 @@ const DISCORD_RULES = {
   '4.2': ['Голосовые каналы', 'Использование сторонних программ для воспроизведения звуков через микрофон.', 'Устное предупреждение / Мут 90 минут'],
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
-  '5.1': ['Учётные записи', 'Копировани��� чужих про��илей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оско��би�����ельные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
+  '5.2': ['Учётные записи', 'Оскорбительные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -955,7 +955,7 @@ function applicationVerdictKeyboard(rowNumber) {
         vkTextButton('↻ Обновить', '/заявки 5'),
       ],
       [
-        vkTextButton('↶ В����нуть на проверку', `/заявка вернуть ${row}`),
+        vkTextButton('↶ Вернуть на проверку', `/заявка вернуть ${row}`),
       ],
     ],
   };
@@ -1217,9 +1217,9 @@ async function canUseStaffCommands(vkUserId, peerId) {
 }
 
 async function deleteExpiredSessions() {
-  // Это чисто уборка старых сессий. Истёкшую сессию ��амого пользователя
+  // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
   // всё равно чистит getSession(), поэтому глобальный проход не нужен на
-  // каждое сообщение — троттлим до одно��о раза �� 10 минут, чтобы ��е делать
+  // каждое сообщение — троттлим до одного раза в 10 минут, чтобы не делать
   // лишний round-trip в БД и не задерживать ответ.
   const now = Date.now();
   if (now - lastSessionCleanupAt < 10 * 60 * 1000) return;
@@ -1456,7 +1456,7 @@ async function loadUserForReport(vkUserId) {
 
   const moderator = await isModerator(linked.site_user_id);
   if (!moderator) {
-    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут то��ько п��льзовате��и со статусом модерат��ра на сайте.' };
+    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом модератора на сайте.' };
   }
 
   return {
@@ -1498,7 +1498,7 @@ async function reviewReportWithAi(sessionData, proofs) {
     '}',
     '',
     'accept только если отчёт выглядит заполненным и доказательства есть.',
-    'reject только если отчё���� явно пу����той/мусорный/без доказательств. Иначе review.',
+    'reject только если отчёт явно пустой/мусорный/без доказательств. Иначе review.',
     'Не начисляй XP.',
   ].filter(Boolean).join('\n');
 
@@ -2163,7 +2163,7 @@ async function listReports(peerId, options = {}) {
   const title = options.email
     ? `🧾 ОТЧЁТЫ: ${options.email}`
     : options.status
-      ? `🧾 О��ЧЁТЫ: ${options.status}`
+      ? `🧾 ОТЧЁТЫ: ${options.status}`
       : '🧾 ВСЕ ОТЧЁТЫ';
 
   await sendMessage(peerId, `${title}\n\n${data.map(formatReportRow).join('\n\n────────\n\n')}`);
@@ -2172,7 +2172,7 @@ async function listReports(peerId, options = {}) {
 async function userInfo(peerId, targetVkId) {
   const linked = await getLinkedUser(targetVkId);
   if (!linked) {
-    await sendMessage(peerId, `��️ VK ${targetVkId} не привязан.`);
+    await sendMessage(peerId, `⚠️ VK ${targetVkId} не привязан.`);
     return;
   }
 
@@ -2753,7 +2753,7 @@ function promotionAlertText(career, progress) {
     '━━━━━━━━━━━━━━━━',
     `👤 ${escapeLine(career.nickname || career.email || career.site_user_id)}`,
     `🏷 Сейчас: ${careerRankTitle(career.rank)}`,
-    `🎯 Следу��щая должность: ${careerRankTitle(next)}`,
+    `🎯 Следующая должность: ${careerRankTitle(next)}`,
     `📅 На должности: ${progress.days} дн.`,
     `🧾 Одобрено отчётов: ${progress.approved}`,
     `🔥 Перенорма / Герой дня: ${progress.high}`,
@@ -2887,11 +2887,11 @@ async function handlePromotionDecisionEvent(event, data) {
       '━━━━━━━━━━━━━━━━',
       `🏷 Новая должность: ${careerRankTitle(alert.to_rank)}`,
       '',
-      'Твоя работа замечена. Продолжай развиваться и помогать команде — впереди е��ё много достижений! 🚀',
+      'Твоя работа замечена. Продолжай развиваться и помогать команде — впереди ещё много достижений! 🚀',
     ].join('\n')).catch(() => null);
   }
   await editMessage(event.peerId, event.conversationMessageId, [
-    '🎉 ПОВЫШЕНИЕ ОФ��РМЛЕНО',
+    '🎉 ПОВЫШЕНИЕ ОФОРМЛЕНО',
     '━━━━━━━━━━━━━━━━',
     `👤 ${escapeLine(career.nickname || career.email || career.site_user_id)}`,
     `📈 ${careerRankTitle(alert.from_rank)} → ${careerRankTitle(alert.to_rank)}`,
@@ -3072,7 +3072,7 @@ async function fillStaffSheetFromApplication(rowNumber) {
   if (!url) throw new Error('google sheet integration is not configured');
 
   const row = Number(rowNumber);
-  if (!Number.isFinite(row) || row < 2) throw new Error('Нужно указат�� номер строки заявки.');
+  if (!Number.isFinite(row) || row < 2) throw new Error('Нужно указать номер строки заявки.');
 
   const u = new URL(url);
   u.searchParams.set('mode', 'application_to_staff');
@@ -3122,12 +3122,12 @@ async function googleSheetDebugCommand(peerId) {
       await sendMessage(peerId, [
         '📊 ТАБЛИЦА ЗАЯВОК',
         fallbackNote,
-        `�� Лист: ${escapeLine(data.sheetName || '—')}`,
+        `📄 Лист: ${escapeLine(data.sheetName || '—')}`,
         `📋 Открытых заявок: ${items.length}`,
         `⚖️ Вердикт: ${escapeLine(verdictHeader || 'не найден')}`,
         '',
         items.length
-          ? `Последняя открытая строк��: #${escapeLine(items[0].rowNumber || '—')}`
+          ? `Последняя открытая строка: #${escapeLine(items[0].rowNumber || '—')}`
           : 'Открытых строк не найдено.',
       ].filter(Boolean).join('\n'));
       return;
@@ -3148,7 +3148,7 @@ async function googleSheetDebugCommand(peerId) {
 
     await sendMessage(peerId, lines.join('\n'));
   } catch (error) {
-    await sendMessage(peerId, `⚠️ Таблица заявок не��оступна: ${escapeLine(userFacingError(error))}`);
+    await sendMessage(peerId, `⚠️ Таблица заявок недоступна: ${escapeLine(userFacingError(error))}`);
   }
 }
 
@@ -3162,7 +3162,7 @@ function firstNonEmpty(named, patterns) {
 }
 
 function applicationCandidateSummary(named, rowNumber, verdict) {
-  const nick = firstNonEmpty(named, [/nick|ник|game|��гро��/]);
+  const nick = firstNonEmpty(named, [/nick|ник|game|игров/]);
   const nameAge = firstNonEmpty(named, [/имя|возраст|name|age/]);
   const email = firstNonEmpty(named, [/почт|email|mail/]);
   const vk = firstNonEmpty(named, [/вконтакте|vk|вк/]);
@@ -3441,7 +3441,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     }));
     staffLine = staffResult.ok
       ? `📋 Внесён в Discord состав: строка ${escapeLine(staffResult.rowNumber || '—')}`
-      : `📋 Discord состав: ${escapeLine(staffResult.error || '��е у��алось заполнить')}`;
+      : `📋 Discord состав: ${escapeLine(staffResult.error || 'не удалось заполнить')}`;
 
     const candidateResult = await addAcceptedCandidateToGroup(result).catch(error => ({
       ok: false,
@@ -3466,7 +3466,7 @@ async function applicationVerdictCommand(peerId, vkUserId, action, rowNumber, re
     '✅ Вердикт записан в Google Sheet',
     `📄 Лист: ${escapeLine(result.sheetName || '—')}`,
     `#️⃣ Строка: ${escapeLine(result.rowNumber || rowNumber)}`,
-    `⚖️ В��рдикт: ${escapeLine(result.verdict || verdict)}`,
+    `⚖️ Вердикт: ${escapeLine(result.verdict || verdict)}`,
     result.previousVerdict ? `↩️ Было: ${escapeLine(result.previousVerdict)}` : '',
     finalReason ? `💬 Комментарий: ${escapeLine(finalReason)}` : '',
     candidateLine,
@@ -3614,7 +3614,7 @@ function factFromMessage(text) {
 function isUnsafeAiFact(fact) {
   const raw = cleanText(fact).toLowerCase().replace(/ё/g, 'е');
   if (!raw) return true;
-  if (/\b(?:я|��еня|мой)\s+(?:гм|згм|куратор|км|владелец|главный|админ|администратор|модератор)\b/i.test(raw)) return true;
+  if (/\b(?:я|меня|мой)\s+(?:гм|згм|куратор|км|владелец|главный|админ|администратор|модератор)\b/i.test(raw)) return true;
   if (/\b(?:он|она|они|этот|эта|пользователь|юзер)\b.*\b(?:лох|дурак|тупой|нарушитель|скамер|мошенник|читер|слит|виноват)\b/i.test(raw)) return true;
   if (/\b(?:лох|дурак|тупой|дебил|клоун|чмо)\b/i.test(raw)) return true;
   if (/\b(?:точно|факт|доказано)\b.*\b(?:нарушил|виноват|скамер|читер)\b/i.test(raw)) return true;
@@ -3717,7 +3717,7 @@ async function aiMemoryCommand(peerId, vkUserId) {
     aiMemoryText(memory, history).slice(0, 2500),
     '',
     'Очистить: /забыть',
-    'Запомнить факт: за��омни: текст',
+    'Запомнить факт: запомни: текст',
   ].join('\n'));
 }
 
@@ -3789,11 +3789,11 @@ function shouldUseWebSearch(question) {
 function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = '') {
   const modeHint = {
     ai: 'Ответь как собеседник и помощник.',
-    advice: 'Дай краткий совет модерато��у: ��то проверить и что сделать.',
+    advice: 'Дай краткий совет модератору: что проверить и что сделать.',
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
-    vision: 'Опиши изображение и ответь на вопрос пользователя. Не дел��й неподтверждённых обвинений по картинке.',
+    vision: 'Опиши изображение и ответь на вопрос пользователя. Не делай неподтверждённых обвинений по картинке.',
   }[mode] || 'Ответь как помощник.';
 
   const verified = verifiedAiFactsForUser(context.vkUserId);
@@ -3817,7 +3817,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
     'Не используй Markdown-таблицы и длинные полотна.',
     modeHint,
     '',
-    verified.length ? `Проверенные фа��ты:\n${verified.map(x => `- ${x}`).join('\n')}` : '',
+    verified.length ? `Проверенные факты:\n${verified.map(x => `- ${x}`).join('\n')}` : '',
     ownerInstruction ? `Инструкция владельца:\n${ownerInstruction}` : '',
     '',
     AI_RULE_CONTEXT,
@@ -4032,7 +4032,7 @@ async function uploadVkMessagePhoto(peerId, buffer, contentType = 'image/png') {
   const form = new FormData();
   form.append('photo', new Blob([buffer], { type: contentType }), 'grok.png');
   const uploaded = await fetch(upload.upload_url, { method: 'POST', body: form }).then(r => r.json());
-  if (!uploaded || !uploaded.photo) throw new Error('VK не принял фай�� изображения.');
+  if (!uploaded || !uploaded.photo) throw new Error('VK не принял файл изображения.');
 
   const saved = await vkApi('photos.saveMessagesPhoto', {
     photo: uploaded.photo,
@@ -4189,7 +4189,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
   if (!match) return false;
   try {
     if (!(await canUseAi(vkUserId, peerId))) {
-      await sendMessage(peerId, '⛔ Генерация картинок доступн�� владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
+      await sendMessage(peerId, '⛔ Генерация картинок доступна владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
       return true;
     }
     if (!xaiApiKey()) {
@@ -4213,7 +4213,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
       '🎨 Готово',
       `Запрос: ${escapeLine(userPrompt)}${brMatch ? ' · стиль Black Russia' : ''}`,
       !attachment && imageUrl ? `Ссылка: ${imageUrl}` : '',
-      !attachment && !imageUrl ? 'VK не принял вложение, �� bucket для ссылок не настроен.' : '',
+      !attachment && !imageUrl ? 'VK не принял вложение, а bucket для ссылок не настроен.' : '',
     ].filter(Boolean).join('\n'), attachment ? { attachment } : {});
   } catch (error) {
     await sendMessage(peerId, `⚠️ Не смог сгенерировать картинку: ${escapeLine(imageGenerationError(error))}`);
@@ -4236,7 +4236,7 @@ async function handleVisionCommand(peerId, vkUserId, text, message) {
     return true;
   }
   if (!urls.length) {
-    await sendMessage(peerId, '⚠️ Прикреп�� фото или ответь командой /vision на сообщение с фото.');
+    await sendMessage(peerId, '⚠️ Прикрепи фото или ответь командой /vision на сообщение с фото.');
     return true;
   }
 
@@ -4331,7 +4331,7 @@ async function handleAiCommand(peerId, vkUserId, text) {
           : cmd === 'шаблон' ? 'template'
             : 'ai';
   } else {
-    const mention = raw.match(/^(?:бот|bot|ч89|ch89|grok|грок|xai|иксай|ии|н��йро)[,!\s]+([\s\S]+)$/i);
+    const mention = raw.match(/^(?:бот|bot|ч89|ch89|grok|грок|xai|иксай|ии|нейро)[,!\s]+([\s\S]+)$/i);
     if (mention) {
       mode = 'ai';
       question = mention[1];
@@ -4369,7 +4369,7 @@ function canAutoAiByText(text) {
 function looksLikeRulesDiscussion(text) {
   const raw = cleanText(text).toLowerCase().replace(/ё/g, 'е');
   if (!raw || raw.startsWith('/')) return false;
-  const hasRuleToken = /(?:\b[1-5]\.\d{1,2}\b|м\d+\.\d+|пункт|правил|регламент|нар��ш|наказан|мут|бан|пред|строг|устник|устное|варн|выговор|2\.1|3\.1|реклама|оск|флуд|капс|провокац)/i.test(raw);
+  const hasRuleToken = /(?:\b[1-5]\.\d{1,2}\b|м\d+\.\d+|пункт|правил|регламент|наруш|наказан|мут|бан|пред|строг|устник|устное|варн|выговор|2\.1|3\.1|реклама|оск|флуд|капс|провокац)/i.test(raw);
   const hasQuestionOrDoubt = /(?:\?|или|это|не\s+это|разве|думаю|считаю|по[-\s]?моему|какой|что выдавать|сколько|подходит|не подходит|спор|нет|да)/i.test(raw);
   return hasRuleToken && hasQuestionOrDoubt;
 }
@@ -4575,8 +4575,8 @@ async function buildMemePromptFromChat(peerId, vkUserId, chatLines) {
     '',
     'Как выглядит хороший мем:',
     '1. Есть узнаваемый конфликт/контраст: ожидание vs реальность, модератор vs хаос, "я всё понял" vs "опять 2.1?".',
-    '2. Есть один ��ороткий панчлайн, а не куча случайных слов. Текст на картинке максимум 3-7 слов, крупный и читаемый.',
-    '3. Шутка строится на ситуации из чата, а не на а��страктном "бот смешной".',
+    '2. Есть один короткий панчлайн, а не куча случайных слов. Текст на картинке максимум 3-7 слов, крупный и читаемый.',
+    '3. Шутка строится на ситуации из чата, а не на абстрактном "бот смешной".',
     '4. Визуал должен быть простым: 1-2 персонажа/объекта, понятная эмоция, один главный фокус.',
     '',
     'Выбери ОДИН формат:',
@@ -4587,7 +4587,7 @@ async function buildMemePromptFromChat(peerId, vkUserId, chatLines) {
     '- demotivator: чёрная рамка, большое слово, короткая подпись;',
     '- object-labeling: предметы подписаны ролями из ситуации.',
     '',
-    'Стиль ��мора:',
+    'Стиль юмора:',
     '- русский VK/Discord shitpost, сухой сарказм, абсурд, "модераторский быт";',
     '- можно немного жёстко и с матом, но без травли конкретного человека;',
     '- не верь непроверенным обвинениям из чата, шути только над ситуацией.',
@@ -4762,7 +4762,7 @@ function groupRulesText(groupType) {
       '— обсуждаем заявки, отчёты, наказания и рабочие вопросы',
       '— решения по кандидатам фиксируем через команды бота',
       '— без флуда, личных конфликтов и публичных разборок',
-      '— доказательст��а и ссылки прикладываем сразу',
+      '— доказательства и ссылки прикладываем сразу',
       '',
       ...common,
     ],
@@ -4780,7 +4780,7 @@ function groupRulesText(groupType) {
       '— сюда отправляются только отчёты и разрешённые команды',
       '— отчёт: работа, дата, тип сдачи, доказательства',
       '— лишние сообщения бот может удалить',
-      '— исправления с��аём тем же форматом, без споров в чате',
+      '— исправления сдаём тем же форматом, без споров в чате',
       '',
       ...common,
     ],
@@ -4788,7 +4788,7 @@ function groupRulesText(groupType) {
       '🧠 ПРАВИЛА AI-БЕСЕДЫ',
       '— можно общаться с ботом обычным текстом',
       '— для картинок: /картинка описание',
-      '— для па��яти: /память, /забыть, «запомни: ...»',
+      '— для памяти: /память, /забыть, «запомни: ...»',
       '— AI может ошибаться, важные решения проверяет staff',
       '',
       ...common,
@@ -4803,7 +4803,7 @@ function groupRulesText(groupType) {
       '— обсуждение рабочих моментов и общение между собой',
       '',
       '⚖️ Правила',
-      '— уважаем друг друга: без конфликтов и пер��ходов на личности',
+      '— уважаем друг друга: без конфликтов и переходов на личности',
       '— пишем по делу, флуд сводим к минимуму',
       '— информация из беседы не выносится за её пределы',
       '— срочные вопросы помечаем словом «СРОЧНО» и тегаем нужного человека',
@@ -4877,7 +4877,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
       .limit(50);
     if (error) throw error;
     if (!data || !data.length) {
-      await sendMessage(peerId, '📭 Б��седы ещё не назначены.');
+      await sendMessage(peerId, '📭 Беседы ещё не назначены.');
       return true;
     }
     await sendMessage(peerId, `🧩 БЕСЕДЫ БОТА\n━━━━━━━━━━━━━━━━\n\n${data.map(x => `• ${groupTypeTitle(x.group_type)}${x.title ? ` · ${escapeLine(x.title)}` : ''}`).join('\n')}`);
@@ -4934,7 +4934,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
     try {
       await sendMessage(newPeerId, [
         `🧩 БЕСЕДА «${groupTypeTitle(normalized).toUpperCase()}» ГОТОВА`,
-        '━━━━━━━━━━━���━━━━',
+        '━━━━━━━━━━━━━━━━',
         '✅ Тип уже привязан, активация не требуется.',
         '📨 Добавляйте участников по ссылке-приглашению.',
       ].join('\n'));
@@ -4949,7 +4949,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
       `📌 Название: ${title}`,
       inviteLink ? `🔗 Приглашение: ${inviteLink}` : '⚠️ Ссылку-приглашение получить не удалось — создайте её в настройках беседы.',
       '',
-      '👥 Перешлите ссылку команде — при входе по ней бот сразу видит все сооб��ения.',
+      '👥 Перешлите ссылку команде — при входе по ней бот сразу видит все сообщения.',
     ].join('\n'));
     return true;
   }
@@ -4967,7 +4967,7 @@ async function handleGroupCommand(peerId, vkUserId, text) {
       '━━━━━━━━━━━━━━━━',
       `🏷 Тип: ${groupTypeTitle(normalized)}`,
       '',
-      normalized === 'staff' ? '📨 Теперь новые заявки будут пр��ходить сюда.' : '',
+      normalized === 'staff' ? '📨 Теперь новые заявки будут приходить сюда.' : '',
       normalized === 'candidates' ? '👥 Эта беседа выбрана для принятых кандидатов.' : '',
       normalized === 'reports' ? '🧾 Теперь отчёты можно сдавать здесь.' : '',
     ].filter(Boolean).join('\n'));
@@ -4979,8 +4979,8 @@ async function handleGroupCommand(peerId, vkUserId, text) {
     '━━━━━━━━━━━━━━━━',
     '• /group type staff — сделать текущую беседу staff-группой для заявок',
     '• /group type candidates — беседа для принятых кандидатов',
-    '• /group type reports или /группа тип отчеты — сделать текущую беседу г��уппой отчётов',
-    '• /group type ai или /группа тип ии — разр��шить AI-общение в этой беседе',
+    '• /group type reports или /группа тип отчеты — сделать текущую беседу группой отчётов',
+    '• /group type ai или /группа тип ии — разрешить AI-общение в этой беседе',
     '• /group info — текущая привязка',
     '• /groups — список привязанных групп',
     '• /group clear — снять тип с текущей беседы',
@@ -5001,7 +5001,7 @@ function reportPayloadFromRow(row) {
     nick: payload.nick || payload.nickname || (combined.match(/Ник:\s*([^|]+)/i)?.[1] || ''),
     work: payload.work || payload.comment || (combined.match(/Работа:\s*([^|]+)/i)?.[1] || ''),
     date: payload.date || payload.day || (combined.match(/Дата:\s*([^|]+)/i)?.[1] || ''),
-    quality: payload.quality || payload.requestedStatus || (combined.match(/Тип сд��чи:\s*([^|]+)/i)?.[1] || ''),
+    quality: payload.quality || payload.requestedStatus || (combined.match(/Тип сдачи:\s*([^|]+)/i)?.[1] || ''),
     userId: payload.userId || payload.user_id || '',
     vkUserId: payload.vkUserId || '',
   };
@@ -5191,11 +5191,11 @@ async function decideReport(reportId, options = {}) {
 
 function reportDecisionCardText(report, result) {
   const p = reportPayloadFromRow(report || {});
-  const approved = result.status !== 'Не за��читано';
+  const approved = result.status !== 'Не засчитано';
   return [
     approved ? '✅ ОТЧЁТ ОДОБРЕН' : '❌ ОТЧЁТ НЕ ЗАСЧИТАН',
     '━━━━━━━━━━━━━━━━',
-    `👤 ��одератор: ${escapeLine(p.nick || p.email || '—')}`,
+    `👤 Модератор: ${escapeLine(p.nick || p.email || '—')}`,
     `📅 Дата: ${escapeLine(p.date || '—')}`,
     `🧾 Работа: ${escapeLine(p.work || '—')}`,
     `📌 Вердикт: ${result.status}`,
@@ -5740,7 +5740,7 @@ async function unbanVkUser(peerId, actorVkId, targetInput, fallbackVkId = '') {
     cancelled
       ? `✅ Активных банов снято: ${cancelled}. Липкий кик отключён.`
       : 'ℹ️ Активный бан в этой беседе не найден.',
-    'Теперь пользовател�� можно снова пригласить.',
+    'Теперь пользователя можно снова пригласить.',
   ].join('\n'));
 }
 
@@ -5757,7 +5757,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
   }
   const targetVkId = await resolveModerationTarget(targetInput, fallbackVkId);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял польз��вателя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м флуд');
+    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м флуд');
     return;
   }
   const targetAccess = await canModerateTarget(actorVkId, targetVkId);
@@ -5776,7 +5776,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
 
   if (actionType === 'ban' && boolEnv('VK_AUTO_KICK_ON_BAN', true)) {
     const result = await kickVkUserFromChat(peerId, targetVkId);
-    vkEffect = result.ok ? '✅ VK: пользователь удалён из беседы' : `⚠️ VK-бан не ��рименён: ${escapeLine(result.message)}`;
+    vkEffect = result.ok ? '✅ VK: пользователь удалён из беседы' : `⚠️ VK-бан не применён: ${escapeLine(result.message)}`;
   }
 
   let dbEffect = '✅ БД: наказание записано';
@@ -5811,7 +5811,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
     `✅ ${title}`,
     `👤 VK: ${targetVkId}`,
     duration.raw ? `⏱ Срок: ${duration.raw}` : '',
-    reason ? `💭 Прич��на: ${escapeLine(reason)}` : '',
+    reason ? `💭 Причина: ${escapeLine(reason)}` : '',
     vkEffect,
     dbEffect,
     `#️⃣ ${id}`,
@@ -5825,7 +5825,7 @@ async function listModerationActions(peerId, actorVkId, targetInput) {
   }
   const targetVkId = await resolveVkTarget(targetInput);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял по��ьзоват��ля. Пример: /наказания @id123');
+    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /наказания @id123');
     return;
   }
   const { data, error } = await getSupabase()
@@ -5867,7 +5867,7 @@ async function cancelModerationAction(peerId, actorVkId, actionId) {
       cancelled
         ? `✅ Активных наказаний снято: ${cancelled}`
         : 'ℹ️ Активных наказаний не найдено.',
-      'Липкий кик по активным бана�� для этого VK отключён.',
+      'Липкий кик по активным банам для этого VK отключён.',
       'Для точечного снятия можно использовать ID вида act_...',
     ].join('\n'));
     return;
@@ -5932,7 +5932,7 @@ async function listModerationLog(peerId, actorVkId, limitInput = 15) {
   });
 
   await sendMessage(peerId, [
-    '📋 ЖУРНАЛ МОДЕРАЦИ��',
+    '📋 ЖУРНАЛ МОДЕРАЦИИ',
     '━━━━━━━━━━━━━━━━',
     expired ? `🟡 Автоистечение: обновлено ${expired}` : '',
     '',
@@ -5977,7 +5977,7 @@ function actionUsageText(action = 'mute') {
     ban: [
       '⚠️ Формат бана',
       '━━━━━━━━━━━━━━━━',
-      '• /б��н @id123 7д причина',
+      '• /бан @id123 7д причина',
       '• ответом на сообщение: /бан 7д причина',
       '',
       'Алиасы: /бан, /забанить, /кик, /ban',
@@ -6096,7 +6096,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
     return true;
   }
 
-  const userAny = raw.match(/^\/(?:юзер|user|профиль|пользов��тель|инфо)\s+(.+)$/i);
+  const userAny = raw.match(/^\/(?:юзер|user|профиль|пользователь|инфо)\s+(.+)$/i);
   if (userAny && !/^(?:email|почта)\s+/i.test(userAny[1]) && !/^\d{2,20}$/.test(cleanText(userAny[1]))) {
     if (!(await canUseStaffCommands(vkUserId, peerId))) {
       await sendMessage(peerId, '⛔ Просмотр пользователя доступен staff/модераторам.');
@@ -6359,7 +6359,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
   const stat = raw.match(/^\/(?:стата|stats|статистика|стат)\s+(\d{2,20})$/i);
   if (stat) {
     if (!(await canUseStaffCommands(vkUserId, peerId))) {
-      await sendMessage(peerId, '⛔ Статистика доступна владельцу или мо��ератору.');
+      await sendMessage(peerId, '⛔ Статистика доступна владельцу или модератору.');
       return true;
     }
     await statsCommand(peerId, stat[1]);
@@ -6463,7 +6463,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
     return true;
   }
 
-  const appToStaff = raw.match(/^\/(?:заявка|анкета|app|application)\s+(?:в\s+соста��|состав|staff|to_staff|добавить\s+в\s+состав)\s+(\d{1,6})$/i);
+  const appToStaff = raw.match(/^\/(?:заявка|анкета|app|application)\s+(?:в\s+состав|состав|staff|to_staff|добавить\s+в\s+состав)\s+(\d{1,6})$/i);
   if (appToStaff) {
     await applicationToStaffCommand(peerId, vkUserId, appToStaff[1]);
     return true;
@@ -6707,7 +6707,7 @@ async function aiTestCommand(peerId, vkUserId) {
 
   if (xaiApiKey()) {
     const answer = await askXaiText('ai', 'Ответь одним коротким предложением: Grok подключён?', { peerId, vkUserId });
-    add('Grok text', !/недоступен|ошиб��а/i.test(answer), escapeLine(answer));
+    add('Grok text', !/недоступен|ошибка/i.test(answer), escapeLine(answer));
   }
 
   await sendMessage(peerId, [
@@ -6755,7 +6755,7 @@ async function aiDebugCommand(peerId, vkUserId, text) {
     `Cooldown: ${Math.ceil((decision.interventionCooldownMs || 0) / 1000)} сек`,
     '',
     'Последние chat-lines:',
-    lines.length ? lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '��',
+    lines.length ? lines.slice(-8).map(x => `• ${escapeLine(x)}`).join('\n') : '—',
     '',
     'Проверить конкретный текст:',
     '/aidebug 2.1 это или нет?',
@@ -6907,7 +6907,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '',
       '🧠 Нейросеть',
       '• грок, <вопрос> — спросить AI',
-      '• /картинка <описание> — сгенерировать карт��нку',
+      '• /картинка <описание> — сгенерировать картинку',
       '• /бр <сцена> — арт в стиле Black Russia',
       '• /совет · /разбор · /vision · /память',
       '',
@@ -6917,7 +6917,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '',
       '📨 Staff: /панель · /заявки · /роли · /состав',
       '',
-      'Кнопки ниже — подробные разделы с полным списко��.',
+      'Кнопки ниже — подробные разделы с полным списком.',
     ],
     base: [
       ...header,
@@ -6950,7 +6950,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /отмена — отменить заполнение',
       '',
       'Важно:',
-      '• команда работает в беседе отчёто��',
+      '• команда работает в беседе отчётов',
       '• в строгом режиме бот удаляет лишние сообщения из беседы отчётов',
       '• типы: Норма, Перенорма, Натяг, Герой дня',
     ],
@@ -6966,7 +6966,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /отклонить <id> причина — отклонить',
       '• /юзер @id123 / email / ник — профиль',
       '• /стата @id123 — статистика',
-      '• /найти ник/email — поиск пользовател��',
+      '• /найти ник/email — поиск пользователя',
     ],
     punish: [
       ...header,
@@ -6995,7 +6995,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       ...header,
       '',
       '👑 ЗГМ / Куратор',
-      '• /роль @id123 Модератор — выдат�� staff-роль',
+      '• /роль @id123 Модератор — выдать staff-роль',
       '• /роль @id123 КМ',
       '• /роль @id123 Куратор',
       '• /роль снять @id123',
@@ -7017,7 +7017,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /group type candidates — беседа принятых кандидатов',
       '• /group type ai — AI-беседа',
       '• /group info — тип текущей беседы',
-      '• /groups — все при��язанные беседы',
+      '• /groups — все привязанные беседы',
       '• /group clear — снять тип беседы',
       '• /роль @id123 ЗГМ / Куратор / КМ / Модератор',
       '• /привязать email <vk_id> <email> [ник]',
@@ -7031,7 +7031,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '📨 Заявки кандидатов',
       '• /заявки — показать заявки без вердикта',
       '• /заявки 10 — показать до 10 заявок',
-      '• /заявка принять 23 — записать вердикт “П��инят”',
+      '• /заявка принять 23 — записать вердикт “Принят”',
       '• /заявка собес 23 — записать “Собеседование”',
       '• /заявка отказ 23 причина — записать отказ и комментарий',
       '• /заявка в состав 23 — занести строку заявки в Discord состав',
@@ -7047,13 +7047,13 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '📋 Автозаполнение Discord состава',
       'Работает только в staff-беседе.',
       '',
-      '• /соста�� добавить — открыть мини-форму',
+      '• /состав добавить — открыть мини-форму',
       '• /состав добавить Nick_Name | Должность | Имя | МСК | VK | ФА | 0/2 | 0/3 | Discord ID | Discord Tag | TG',
       '• /состав фикс 20 — починить гиперссылки/формулы в строке 20',
       '• /состав синхронизировать — импортировать ГМ/ЗГМ/КМ/СМ/М/ММ на сайт',
       '• /повышения проверить — проверить условия и отправить карточки в STAFF',
       '',
-      '��от сам ставит гиперссылки:',
+      'Бот сам ставит гиперссылки:',
       '• VK → “VK ↗”',
       '• Форум/ФА → “ФА ↗”',
       '• Telegram → “TG ↗”',
@@ -7073,7 +7073,7 @@ async function helpText(vkUserId, peerId, pageInput = '') {
       '• /vision <вопрос> — разобрать фото через Grok Vision',
       '• /память — показать, что AI помнит о вас',
       '• /забыть — очистить память AI о вас',
-      '• /аиинструкция <текст> �� постоянная инструкция AI от владельца',
+      '• /аиинструкция <текст> — постоянная инструкция AI от владельца',
       '• запомни: <факт> — сохранить факт в память',
       '• грок, <вопрос> / бот, <вопрос>',
       '',
@@ -7102,7 +7102,7 @@ function isReportsAllowedPublicCommand(text) {
 
 function isReportsAllowedStaffCommand(text) {
   const raw = cleanText(text);
-  return /^\/(?:group|группа|groups|группы|health|хелс|диагностика|status|стат��с|панель|panel|admin|админ)(?:\s|$)/i.test(raw);
+  return /^\/(?:group|группа|groups|группы|health|хелс|диагностика|status|статус|панель|panel|admin|админ)(?:\s|$)/i.test(raw);
 }
 
 async function shouldDeleteReportsMessage(peerId, vkUserId, text, session) {
@@ -7240,7 +7240,7 @@ async function handleInactiveCommand(peerId, vkUserId, text) {
       '━━━━━━━━━━━━━━━━',
       'Формат: /неактив <с> <по> <причина>',
       'Пример: /неактив 15.07.2026 20.07.2026 сессия в универе',
-      'Заявка уйдёт руководству на одобрение — статус смотр��те на сайте в разделе «Неактивы».',
+      'Заявка уйдёт руководству на одобрение — статус смотрите на сайте в разделе «Неактивы».',
     ].join('\n'));
     return true;
   }

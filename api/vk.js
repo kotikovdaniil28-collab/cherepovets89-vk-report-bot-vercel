@@ -127,7 +127,7 @@ const DISCORD_RULES = {
   '4.3': ['Голосовые каналы', 'Использование неправильно настроенного микрофона с усилением, фоном или шипением.', 'Устное предупреждение / Мут 90 минут'],
   '4.4': ['Голосовые каналы', 'Использование программ для изменения голоса.', 'Устное предупреждение / Мут 90 минут'],
   '5.1': ['Учётные записи', 'Копирование чужих профилей.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней / Перманентная блокировка'],
-  '5.2': ['Учётные записи', 'Оскорбительные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
+  '5.2': ['Учётные записи', 'Оскорбител��ные или провокационные никнеймы/оформления профиля.', 'Устное предупреждение / Бан 7-15 дней'],
   '5.3': ['Учётные записи', 'Использование в никнейме тегов и префиксов должностей без отношения к ним; на фракционные должности не распространяется.', 'Устное предупреждение / Предупреждение / Бан 7-15 дней'],
 };
 
@@ -1218,7 +1218,7 @@ async function canUseStaffCommands(vkUserId, peerId) {
 
 async function deleteExpiredSessions() {
   // Это чисто уборка старых сессий. Истёкшую сессию самого пользователя
-  // всё равно чистит getSession(), поэтому глобальный проход не нужен на
+  // всё равно ��истит getSession(), поэтому глобальный проход не нужен на
   // каждое сообщение — троттлим до одного раза в 10 минут, чтобы не делать
   // лишний round-trip в БД и не задерживать ответ.
   const now = Date.now();
@@ -1456,7 +1456,7 @@ async function loadUserForReport(vkUserId) {
 
   const moderator = await isModerator(linked.site_user_id);
   if (!moderator) {
-    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом модератора на сайте.' };
+    return { ok: false, text: '⛔ Сдавать отчёты через VK-бота могут только пользователи со статусом мод��ратора на сайте.' };
   }
 
   return {
@@ -3793,7 +3793,7 @@ function buildAiSystemPrompt(mode, context, memory, history, ownerInstruction = 
     punishment: 'Определи ближайший пункт правил и меру. Не назначай окончательно без доказательств.',
     template: 'Дай короткий готовый ответ игроку/кандидату.',
     analyze: 'Разбери кейс: факт, правило, риск, действие.',
-    vision: 'Опиши изображение и ответь на вопрос пользователя. Не делай неподтверждённых обвинений по картинке.',
+    vision: 'Опиши изображен��е и ответь на вопрос пользователя. Не делай неподтверждённых обвинений по картинке.',
   }[mode] || 'Ответь как помощник.';
 
   const verified = verifiedAiFactsForUser(context.vkUserId);
@@ -4189,7 +4189,7 @@ async function handleImageCommand(peerId, vkUserId, text) {
   if (!match) return false;
   try {
     if (!(await canUseAi(vkUserId, peerId))) {
-      await sendMessage(peerId, '⛔ Генерация картинок доступна владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
+      await sendMessage(peerId, '⛔ Генерация картинок д��ступна владельцу, модераторам и разрешённым группам staff/reports/ai/nomod.');
       return true;
     }
     if (!xaiApiKey()) {
@@ -4370,7 +4370,7 @@ function looksLikeRulesDiscussion(text) {
   const raw = cleanText(text).toLowerCase().replace(/ё/g, 'е');
   if (!raw || raw.startsWith('/')) return false;
   const hasRuleToken = /(?:\b[1-5]\.\d{1,2}\b|м\d+\.\d+|пункт|правил|регламент|наруш|наказан|мут|бан|пред|строг|устник|устное|варн|выговор|2\.1|3\.1|реклама|оск|флуд|капс|провокац)/i.test(raw);
-  const hasQuestionOrDoubt = /(?:\?|или|это|не\s+это|разве|думаю|считаю|по[-\s]?моему|какой|что выдавать|сколько|подходит|не подходит|спор|нет|да)/i.test(raw);
+  const hasQuestionOrDoubt = /(?:\?|или|это|не\s+это|разве|думаю|считаю|по[-\s]?моему|какой|ч��о выдавать|сколько|подходит|не подходит|спор|нет|да)/i.test(raw);
   return hasRuleToken && hasQuestionOrDoubt;
 }
 
@@ -5711,8 +5711,8 @@ async function unmuteVkUser(peerId, actorVkId, targetInput, fallbackVkId = '') {
   await sendMessage(peerId, [
     '🔊 Анмут',
     `👤 VK: ${targetVkId}`,
-    apiResult.ok ? '✅ VK: писать разрешено' : `⚠️ VK: ${escapeLine(apiResult.message)}`,
-    cancelled ? `✅ БД: активных мутов снято: ${cancelled}` : 'ℹ️ БД: активный мут не найден',
+    apiResult.ok ? '✅ Пользователю снова можно писать' : `⚠️ ${escapeLine(apiResult.message)}`,
+    cancelled ? '✅ Мут снят' : 'ℹ️ Активный мут не найден',
     'Если мут выдавался в другой беседе, VK-размут нужно выполнить там же.',
   ].join('\n'));
 }
@@ -5757,7 +5757,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
   }
   const targetVkId = await resolveModerationTarget(targetInput, fallbackVkId);
   if (!targetVkId) {
-    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м флуд');
+    await sendMessage(peerId, '⚠️ Не понял пользователя. Пример: /мут @id123 90м флуд или ответом на сообщение: /мут 90м ��луд');
     return;
   }
   const targetAccess = await canModerateTarget(actorVkId, targetVkId);
@@ -5771,15 +5771,15 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
   let vkEffect = '';
   if (actionType === 'mute' && boolEnv('VK_USE_CHAT_RESTRICTIONS', true)) {
     const result = await applyVkChatRestriction(peerId, targetVkId, 'ro', duration);
-    vkEffect = result.ok ? '✅ VK: писать запрещено' : `⚠️ VK-мут не применён: ${escapeLine(result.message)}`;
+    vkEffect = result.ok ? '🔇 Пользователю запрещено писать' : `⚠️ Мут в беседе не применён: ${escapeLine(result.message)}`;
   }
 
   if (actionType === 'ban' && boolEnv('VK_AUTO_KICK_ON_BAN', true)) {
     const result = await kickVkUserFromChat(peerId, targetVkId);
-    vkEffect = result.ok ? '✅ VK: пользователь удалён из беседы' : `⚠️ VK-бан не применён: ${escapeLine(result.message)}`;
+    vkEffect = result.ok ? '👋 Пользователь удалён из беседы' : `⚠️ Кик из беседы не применён: ${escapeLine(result.message)}`;
   }
 
-  let dbEffect = '✅ БД: наказание записано';
+  let dbEffect = '';
   const { error } = await getSupabase().from('vk_moderation_actions').insert([{
     id,
     peer_id: String(peerId),
@@ -5793,7 +5793,7 @@ async function createModerationAction(peerId, actorVkId, actionType, targetInput
     created_at: new Date().toISOString(),
   }]);
   if (error) {
-    dbEffect = `⚠️ БД: не записано (${escapeLine(error.message || error)})`;
+    dbEffect = '⚠️ Наказание не сохранилось в журнале — попробуйте ещё раз';
   }
 
   const title = {
@@ -6178,7 +6178,7 @@ async function handleModCommand(peerId, vkUserId, text, message = null) {
     return true;
   }
 
-  const warn = raw.match(/^\/(?:пред|warn|предупреждение|варн)\s+(\S+)(?:\s+([\s\S]+))?$/i);
+  const warn = raw.match(/^\/(?:п��ед|warn|предупреждение|варн)\s+(\S+)(?:\s+([\s\S]+))?$/i);
   if (warn) {
     await createModerationAction(peerId, vkUserId, 'warn', warn[1], '', warn[2] || '');
     return true;
@@ -7237,7 +7237,7 @@ async function handleInactiveCommand(peerId, vkUserId, text) {
   if (isBare) {
     await sendMessage(peerId, [
       '📅 ЗАЯВКА НА НЕАКТИВ',
-      '━━━━━━━━━━━━━━━━',
+      '━━━━━━━━��━━━━━━━',
       'Формат: /неактив <с> <по> <причина>',
       'Пример: /неактив 15.07.2026 20.07.2026 сессия в универе',
       'Заявка уйдёт руководству на одобрение — статус смотрите на сайте в разделе «Неактивы».',
